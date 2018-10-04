@@ -18,6 +18,7 @@ succeeds.
 
 import sys
 import random
+import numpy
 import math
 from abc import abstractmethod
 import gzip
@@ -86,6 +87,8 @@ class ConnectivityBase(object):
                         "rssi": -1000,
                     }
 
+        self.rssi_tensor = numpy.zeros((len(connectivity_matrix),len(connectivity_matrix),self.settings.numChans))
+        self.pdr_tensor = numpy.zeros((len(connectivity_matrix),len(connectivity_matrix),self.settings.numChans))
         # introduce some connectivity in the matrix
         self._init_connectivity_matrix()
 
@@ -720,6 +723,41 @@ class ConnectivityRandom(ConnectivityBase):
                     # try another random coordinate
                     continue
 
+    def update_connectivity_matrix(self):
+                for target_mote in self.engine.motes:
+                    for deployed_mote_id in self.coordinates.keys():
+                        #whats the best way to avoid the divide by 0 errors on the diagonal of the conn
+                        #matrix
+                        if not target_mote.id==deployed_mote_id: 
+                            rssi = self.pister_hack.compute_rssi(
+                                {
+                                    'mote'      : target_mote,
+                                    'coordinate': self.coordinates[target_mote.id]
+                                },
+                                {
+                                    'mote'      : self._get_mote(deployed_mote_id),
+                                    'coordinate': self.coordinates[deployed_mote_id]
+                                }
+                            )
+                            pdr = self.pister_hack.convert_rssi_to_pdr(rssi)
+                            # memorize the rssi and pdr values at channel 0
+                            self._set_rssi(target_mote.id, deployed_mote_id, 0, rssi)
+                            self._set_pdr(target_mote.id, deployed_mote_id, 0, pdr)
+                            '''self.log(
+                                SimEngine.SimLog.LOG_LOCATION_CONNECTIVITY,
+                                {
+                                    'src_mote' : target_mote.id,
+                                    'dst_mote' : deployed_mote_id,
+                                    'pdr'      : pdr,
+                                    'rssi'     : rssi
+                                }
+                            )'''
+                            for channel in range(1, self.settings.phy_numChans):
+                                self._set_rssi(target_mote.id, deployed_mote_id, channel, rssi)
+                                self._set_pdr(target_mote.id, deployed_mote_id, channel, pdr)
+
+
+
     def _get_mote(self, mote_id):
         # there must be a mote having mote_id. otherwise, the following line
         # raises an exception.
@@ -745,7 +783,8 @@ class ConnectivityRandom(ConnectivityBase):
 
 class PisterHackModel(object):
 
-    PISTER_HACK_LOWER_SHIFT  =         40 # dB
+    #PISTER_HACK_LOWER_SHIFT  =         40 # dB
+
     TWO_DOT_FOUR_GHZ         = 2400000000 # Hz
     SPEED_OF_LIGHT           =  299792458 # m/s
 
@@ -779,7 +818,7 @@ class PisterHackModel(object):
 
         # singleton
         self.engine   = SimEngine.SimEngine()
-
+        self.PISTER_HACK_LOWER_SHIFT = self.engine.settings.pister_hack_drop
         # remember what RSSI value is computed for a mote at an ASN; the same
         # RSSI value will be returned for the same motes and the ASN.
         self.rssi_cache = {} # indexed by (src_mote.id, dst_mote.id)
@@ -819,13 +858,19 @@ class PisterHackModel(object):
 
         # the receiver will receive the packet with an rssi uniformly
         # distributed between friis and (friis - 40)
-        rssi = (
-            mu +
-            random.uniform(
-                -self.PISTER_HACK_LOWER_SHIFT/2,
-                +self.PISTER_HACK_LOWER_SHIFT/2
+        if not self.engine.settings.location_update:
+            rssi = (
+                mu +
+                random.uniform(
+                    -self.PISTER_HACK_LOWER_SHIFT/2,
+                    +self.PISTER_HACK_LOWER_SHIFT/2
+                )
             )
-        )
+        else:
+            rssi = (
+                mu+self.PISTER_HACK_LOWER_SHIFT/2 -
+                random.expovariate(2.0/self.PISTER_HACK_LOWER_SHIFT)
+            )            
 
         return rssi
 

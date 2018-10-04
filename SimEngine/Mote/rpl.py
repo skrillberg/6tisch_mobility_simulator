@@ -51,12 +51,21 @@ class Rpl(object):
         # local variables
         self.dodagId                   = None
         self.of                        = RplOF0(self)
-        self.trickle_timer             = TrickleTimer(
-            i_min    = pow(2, self.DEFAULT_DIO_INTERVAL_MIN),
-            i_max    = self.DEFAULT_DIO_INTERVAL_DOUBLINGS,
-            k        = self.DEFAULT_DIO_REDUNDANCY_CONSTANT,
-            callback = self._send_DIO
-        )
+
+        if self.settings.rpl_timer_type == "trickle":
+            self.trickle_timer             = TrickleTimer(
+                i_min    = pow(2, self.DEFAULT_DIO_INTERVAL_MIN),
+                i_max    = self.DEFAULT_DIO_INTERVAL_DOUBLINGS,
+                k        = self.DEFAULT_DIO_REDUNDANCY_CONSTANT,
+                callback = self._send_DIO
+            )
+        elif self.settings.rpl_timer_type == "constant":
+            self.trickle_timer             = TrickleTimer(
+                i_min    = pow(2, 10),
+                i_max    = 1,
+                k        = self.DEFAULT_DIO_REDUNDANCY_CONSTANT,
+                callback = self._send_DIO
+            )
         self.parentChildfromDAOs       = {}      # dictionary containing parents of each node
         self._tx_stat                  = {}      # indexed by mote_id
         self.dis_mode = self._get_dis_mode()
@@ -486,13 +495,7 @@ class RplOF0(object):
         if neighbor is None:
             # we've not received DIOs from this neighbor; ignore the neighbor
             return
-        elif (
-                (cell.mac_addr == mac_addr)
-                and
-                (d.CELLOPTION_TX in cell.options)
-                and
-                (d.CELLOPTION_SHARED not in cell.options)
-            ):
+        else:
             neighbor['numTx'] += 1
             if isACKed is True:
                 neighbor['numTxAck'] += 1
@@ -545,7 +548,15 @@ class RplOF0(object):
             # ETX is 3, which is defined in Section 5.1.1 of RFC 8180
             assert step_of_rank <= self.MAXIMUM_STEP_OF_RANK
             neighbor['rank_increase'] = step_of_rank * d.RPL_MINHOPRANKINCREASE
-
+        self.rpl.log(
+        SimEngine.SimLog.LOG_MOBILITY_ETX,
+        {
+            "_mote_id":        self.rpl.mote.id,
+            "neighbor":            neighbor,
+            "etx": etx
+            
+        }
+        )
     def _calculate_rank(self, neighbor):
         if (
                 (neighbor is None)

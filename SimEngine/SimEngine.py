@@ -17,6 +17,7 @@ import SimSettings
 import SimLog
 import Connectivity
 import SimConfig
+import numpy
 
 # =========================== defines =========================================
 
@@ -272,6 +273,57 @@ class DiscreteEventEngine(threading.Thread):
                     intraSlotOrder     = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
             )
 
+
+    # === location update
+    def updateLocation(self):
+
+        square_side        = self.settings.conn_random_square_side
+
+        #print "location updated placeholder", self.asn
+        #print self.connectivity.coordinates
+        for motename in self.connectivity.coordinates:
+            #print motename
+                    # determine coordinates of the motes
+       
+            current_coords = self.connectivity.coordinates[motename]
+            # select a tentative coordinate
+
+            if motename == 1 and self.asn>self.settings.drift_delay:
+                self.connectivity.coordinates[motename] = (
+                    current_coords[0] + self.settings.location_drift,
+                    current_coords[1] 
+                    #current_coords[0] + (square_side * random.random()-square_side/2)*self.settings.location_drift,
+                    #current_coords[1] + (square_side * random.random()-square_side/2)*self.settings.location_drift
+                )
+            else:
+                self.connectivity.coordinates[motename] = (
+                    current_coords[0] + self.settings.location_drift*0,
+                    current_coords[1] 
+                    #current_coords[0] + (square_side * random.random()-square_side/2)*self.settings.location_drift,
+                    #current_coords[1] + (square_side * random.random()-square_side/2)*self.settings.location_drift
+                )
+            self.log(
+                SimLog.LOG_LOCATION_UPDATE,
+                {
+                    '_mote_id' : motename,
+                    'x': self.connectivity.coordinates[motename][0],
+                    'y': self.connectivity.coordinates[motename][1],
+                    'z':      0,
+                }
+            )
+            if motename == 0:
+                self.connectivity.coordinates[motename] = (0, 0)
+            self.connectivity.update_connectivity_matrix()
+
+        
+        self.scheduleAtAsn(
+            asn = self.asn + self.settings.location_update_period,
+            cb = self.updateLocation,
+            uniqueTag = ('LocationManager','InitialUpdate'),
+            intraSlotOrder     = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
+
+        )
+
     # ======================== private ========================================
 
     def _actionPauseSim(self):
@@ -375,7 +427,15 @@ class SimEngine(DiscreteEventEngine):
                 "state":  "started"
             }
         )
-        
+        #schedule location update
+        if self.settings.location_update:
+            self.scheduleAtAsn(
+                asn = self.settings.location_update_period,
+                cb = self.updateLocation,
+                uniqueTag = ('LocationManager','InitialUpdate'),
+                intraSlotOrder     = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
+
+            )
         # schedule end of simulation
         self.scheduleAtAsn(
             asn              = self.settings.tsch_slotframeLength*self.settings.exec_numSlotframesPerRun,

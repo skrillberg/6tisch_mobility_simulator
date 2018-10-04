@@ -525,7 +525,13 @@ class Tsch(object):
         # add the source mote to the neighbor list if it's not listed yet
         if packet['mac']['srcMac'] not in self.neighbor_table:
             self.neighbor_table.append(packet['mac']['srcMac'])
-
+            self.log(
+            SimEngine.SimLog.LOG_MOBILITY_NEIGHBORS,
+            {
+                '_mote_id':        self.mote.id,
+                'neighbor_table':          self.neighbor_table,
+            }
+        )
         # abort if I received a frame for someone else
         if (
                 (packet['mac']['dstMac'] != d.BROADCAST_ADDRESS)
