@@ -218,7 +218,7 @@ def main():
             'pid':                os.getpid(),
             'numRuns':            simconfig.execution.numRuns,
             'first_run':          0,
-            'verbose':            True,
+            'verbose':            simconfig.execution.verbose,
             'config_data':        simconfig.get_config_data()
         })
 

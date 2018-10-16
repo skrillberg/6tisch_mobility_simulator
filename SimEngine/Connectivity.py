@@ -29,7 +29,7 @@ import SimSettings
 import SimEngine
 from Mote.Mote import Mote
 from Mote import MoteDefines as d
-
+import SimLog
 # =========================== defines =========================================
 
 CONN_TYPE_TRACE         = "trace"
@@ -87,8 +87,8 @@ class ConnectivityBase(object):
                         "rssi": -1000,
                     }
 
-        self.rssi_tensor = numpy.zeros((len(connectivity_matrix),len(connectivity_matrix),self.settings.numChans))
-        self.pdr_tensor = numpy.zeros((len(connectivity_matrix),len(connectivity_matrix),self.settings.numChans))
+        #self.rssi_tensor = numpy.zeros((len(connectivity_matrix),len(connectivity_matrix),self.settings.numChans))
+        #self.pdr_tensor = numpy.zeros((len(connectivity_matrix),len(connectivity_matrix),self.settings.numChans))
         # introduce some connectivity in the matrix
         self._init_connectivity_matrix()
 
@@ -707,6 +707,7 @@ class ConnectivityRandom(ConnectivityBase):
                     ):
                     # fix the coordinate of the mote
                     self.coordinates[target_mote.id] = coordinate
+
                     # copy the rssi and pdr values to other channels
                     for deployed_mote_id in self.coordinates.keys():
                         rssi = self.get_rssi(target_mote.id, deployed_mote_id, channel=0)

@@ -275,6 +275,22 @@ class DiscreteEventEngine(threading.Thread):
 
 
     # === location update
+    def logInitialLocation(self):
+        for motename in self.connectivity.coordinates:
+
+       
+            current_coords = self.connectivity.coordinates[motename]
+
+            self.log(
+                SimLog.LOG_LOCATION_UPDATE,
+                {
+                    '_mote_id' : motename,
+                    'x': current_coords[0],
+                    'y': current_coords[1],
+                    'z':      0,
+                }
+            )
+
     def updateLocation(self):
 
         square_side        = self.settings.conn_random_square_side
@@ -433,6 +449,15 @@ class SimEngine(DiscreteEventEngine):
                 asn = self.settings.location_update_period,
                 cb = self.updateLocation,
                 uniqueTag = ('LocationManager','InitialUpdate'),
+                intraSlotOrder     = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
+
+            )
+        #otherwise just log initial locations
+        else:
+            self.scheduleAtAsn(
+                asn = 1,
+                cb = self.logInitialLocation,
+                uniqueTag = ('LocationManager','InitialLocation'),
                 intraSlotOrder     = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
 
             )
