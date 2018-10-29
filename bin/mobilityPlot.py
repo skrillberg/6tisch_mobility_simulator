@@ -22,8 +22,8 @@ from SimEngine import SimLog
 from SimEngine import SimEngine
 import SimEngine.Mote.MoteDefines as d
 
-override = False
-filename = ""
+override = True
+dirname = "SimData/20181016-120404-311"
 no_figures = True
 plot_all = False
 plot_mote_num = 1
@@ -229,7 +229,7 @@ def load_data(inputfile):
 
             allstats[run_id][mote_id]['eb_rx'].append({'asn' : asn, 'time_s': asn*file_settings['tsch_slotDuration']}) 
 
-        elif logline['_type'] == SimLog.LOG_PROP_INTERFERENCE ['type']: 
+        elif logline['_type'] == SimLog.LOG_PROP_INTERFERENCE['type']: 
             mote_id    = logline['_mote_id']
             asn        = logline['_asn']
             channel     = logline['channel']
@@ -276,6 +276,7 @@ def load_data(inputfile):
                     print("Average EB Tx Rate: ", len(eb_txs)/
                                                     (eb_txs['time_s'].iloc[-1] - eb_txs['time_s'].iloc[0]+0.000001)
                     )
+                    dataline['eb_txs']=len(eb_txs)
                     if no_figures:
                         plt.clf()                
 
@@ -294,13 +295,13 @@ def load_data(inputfile):
                     if no_figures:
                         plt.clf()
 
-                if 'collisions' in allstats[run][mote_num]:
+                if 'collision' in allstats[run][mote_num]:
                     plt.figure()
-                    collisions = pandas.DataFrame.from_dict(allstats[run][mote_num]['collisions'])
+                    collisions = pandas.DataFrame.from_dict(allstats[run][mote_num]['collision'])
                     plt.stem(collisions['time_s'],numpy.ones(len(collisions['time_s'])))
                     plt.title('packet Collisions')
 
-                    dataline["collision_rate"] = len(collisions)/ (collisions['time_s'].iloc[-1] - collisions['time_s'].iloc[0]+0.000001)
+                    dataline["collisions"] = len(collisions)
                     if no_figures:
                         plt.clf()
 
@@ -331,13 +332,13 @@ def load_data(inputfile):
                 if 'location' in allstats[run][mote_num]:
                     locations = pandas.DataFrame.from_dict(allstats[run][mote_num]['location'])
                     plt.figure()
-                    for mote in allstats[0]:
+                    for mote in allstats[run]:
                         mote_traj = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
                         plt.plot(mote_traj['x'],mote_traj['y'])
                         plt.scatter(mote_traj['x'].iloc[-1],mote_traj['y'].iloc[-1])
                         plt.annotate(str(mote),(mote_traj['x'].iloc[-1],mote_traj['y'].iloc[-1]))
-                    if no_figures:
-                        plt.clf()
+                    #if no_figures:
+                     #   plt.clf()
                     for mote in range(0,len(allstats[run])):
                         if 'churn' in allstats[run][mote] and 'location' in allstats[run][mote]:
                             churn = pandas.DataFrame.from_dict(allstats[run][mote]['churn'])
@@ -405,18 +406,16 @@ subfolder = max(subfolders, key=os.path.getmtime)
 print(subfolder)
 
 if override:
+    subfolder = dirname
+
+files = glob.glob(os.path.join(subfolder,'*.dat'))
+print files
+
+if len(files) ==0:
     files = []
-    files += filename 
-
-else:
-    files = glob.glob(os.path.join(subfolder,'*.dat'))
-    print files
-
-    if len(files) ==0:
-        files = []
-        subsubfolders = glob.glob(os.path.join(subfolder, '*')) 
-        for paramfolder in subsubfolders:
-            files += (glob.glob(os.path.join(paramfolder, '*.dat')))
+    subsubfolders = glob.glob(os.path.join(subfolder, '*')) 
+    for paramfolder in subsubfolders:
+        files += (glob.glob(os.path.join(paramfolder, '*.dat')))
 
 #print files
 for file in files:

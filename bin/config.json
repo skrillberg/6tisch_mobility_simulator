@@ -2,7 +2,7 @@
     "version":                                             0,
     "execution": {
         "numCPUs":                                         -1,
-        "numRuns":                                         6,
+        "numRuns":                                         8,
         "verbose":                                     true
 
     },
@@ -10,7 +10,7 @@
         "combination": {
             "exec_numMotes":                               [20],
             "tsch_slotframeLength":                        [2,5,10,20,30,40,50,60,70,80,90,101],
-            "tsch_probBcast_ebProb":                       [0.9]
+            "tsch_probBcast_ebProb":                       [0.7]
         },
         "regular": {
             "exec_numSlotframesPerRun":                    2000,
