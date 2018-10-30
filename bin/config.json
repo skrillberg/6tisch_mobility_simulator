@@ -1,15 +1,15 @@
 {
     "version":                                             0,
     "execution": {
-        "numCPUs":                                         -1,
-        "numRuns":                                         8,
+        "numCPUs":                                         1,
+        "numRuns":                                         1,
         "verbose":                                     true
 
     },
     "settings": {
         "combination": {
-            "exec_numMotes":                               [20],
-            "tsch_slotframeLength":                        [2,5,10,20,30,40,50,60,70,80,90,101],
+            "exec_numMotes":                               [10],
+            "tsch_slotframeLength":                        [13],
             "tsch_probBcast_ebProb":                       [0.7]
         },
         "regular": {
@@ -25,7 +25,7 @@
             "app_burstTimestamp":                          null,
             "app_burstNumPackets":                         0,
 
-            "rpl_timer_type":                              "trickle",
+            "rpl_timer_type":                              "constant",
             "rpl_daoPeriod":                               10,
             "rpl_extensions":                              ["dis_unicast"],
 
@@ -54,11 +54,14 @@
             "conn_random_init_min_neighbors":              3,
 
             "phy_numChans":                                16,
-            "location_update":                             false,
+            "location_update":                             true,
             "location_drift":                              0.0001,
             "drift_delay":                                20000,
-            "location_update_period":                      100,
-            "pister_hack_drop":                            40             
+            "location_update_period":                      10,
+            "pister_hack_drop":                            40,
+            "constant_vel":                                10,
+            "repulsion_constant":                          0.000001,
+            "control_mode" :                                "parent_drag"
         }
     },
     "logging":                                             "all",

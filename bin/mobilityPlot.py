@@ -22,9 +22,9 @@ from SimEngine import SimLog
 from SimEngine import SimEngine
 import SimEngine.Mote.MoteDefines as d
 
-override = True
+override = False
 dirname = "SimData/20181016-120404-311"
-no_figures = True
+no_figures = False
 plot_all = False
 plot_mote_num = 1
 # =========================== defines =========================================
@@ -330,10 +330,12 @@ def load_data(inputfile):
                         plt.clf()
 
                 if 'location' in allstats[run][mote_num]:
+                    print "Plotting Locations and Topology"
                     locations = pandas.DataFrame.from_dict(allstats[run][mote_num]['location'])
                     plt.figure()
-                    for mote in allstats[run]:
+                    for mote in allstats[run].keys():
                         mote_traj = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
+                        
                         plt.plot(mote_traj['x'],mote_traj['y'])
                         plt.scatter(mote_traj['x'].iloc[-1],mote_traj['y'].iloc[-1])
                         plt.annotate(str(mote),(mote_traj['x'].iloc[-1],mote_traj['y'].iloc[-1]))
@@ -346,7 +348,7 @@ def load_data(inputfile):
                             parent_num = int(str(churn['parent'].iloc[-1][-2:]),16)
                             child_location = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
                             parent_location = pandas.DataFrame.from_dict(allstats[run][parent_num]['location'])
-                            plt.plot((child_location['x'].iloc[-1],parent_location['x'].iloc[-1]),(child_location['y'].iloc[-1],parent_location['y'].iloc[-1]))
+                            plt.plot((child_location['x'].iloc[-1],parent_location['x'].iloc[-1]),(child_location['y'].iloc[-1],parent_location['y'].iloc[-1]), '--')
 
                     plt.figure()
                     plt.subplot(311)
@@ -394,6 +396,8 @@ subfolders = list(
         os.listdir(options.inputfolder)
     )
 )
+
+
 '''
 subfolders = list(
     map(lambda x: os.path.join("SimData", x),
@@ -422,7 +426,7 @@ for file in files:
     with open(file, "r") as read_file:
         load_data(read_file)
        
-
+'''
 df = pandas.DataFrame(save_data_ebs)
 df.to_csv(os.path.join(subfolder,"eb_data"))
 plt.close('all')
@@ -475,5 +479,5 @@ plt.scatter(df["eb_prob"],df["eb_rx_rate"]/df["num_neighbors"])
 plt.title("EB rx rate vs. EB prob")
 plt.ylabel("RX rate per Neighbor")
 plt.xlabel("EB prob")
-
+'''
 plt.show()
