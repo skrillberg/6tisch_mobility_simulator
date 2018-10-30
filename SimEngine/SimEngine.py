@@ -19,6 +19,14 @@ import Connectivity
 import SimConfig
 import numpy
 
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from matplotlib import style
+import sys
+import pandas
+import netaddr
+
+
 # =========================== defines =========================================
 
 # =========================== body ============================================
@@ -64,6 +72,8 @@ class DiscreteEventEngine(threading.Thread):
             # initialize parent class
             threading.Thread.__init__(self)
             self.name                           = 'DiscreteEventEngine'
+
+
         except:
             # an exception happened when initializing the instance
             
@@ -204,6 +214,12 @@ class DiscreteEventEngine(threading.Thread):
                 return mote
         return None
     
+    def get_mote_by_mote_id(self, mote_id):
+        for mote in self.motes:
+            if mote.id == mote_id:
+                return mote
+        return None
+
     #=== scheduling
     
     def scheduleAtAsn(self, asn, cb, uniqueTag, intraSlotOrder):
@@ -297,13 +313,16 @@ class DiscreteEventEngine(threading.Thread):
 
         #print "location updated placeholder", self.asn
         #print self.connectivity.coordinates
+        self.nextModelStep()
+
+        
         for motename in self.connectivity.coordinates:
             #print motename
                     # determine coordinates of the motes
-       
+            '''
             current_coords = self.connectivity.coordinates[motename]
             # select a tentative coordinate
-
+            
             if motename == 1 and self.asn>self.settings.drift_delay:
                 self.connectivity.coordinates[motename] = (
                     current_coords[0] + self.settings.location_drift,
@@ -317,7 +336,8 @@ class DiscreteEventEngine(threading.Thread):
                     current_coords[1] 
                     #current_coords[0] + (square_side * random.random()-square_side/2)*self.settings.location_drift,
                     #current_coords[1] + (square_side * random.random()-square_side/2)*self.settings.location_drift
-                )
+                        )
+            '''
             self.log(
                 SimLog.LOG_LOCATION_UPDATE,
                 {
@@ -327,9 +347,8 @@ class DiscreteEventEngine(threading.Thread):
                     'z':      0,
                 }
             )
-            if motename == 0:
-                self.connectivity.coordinates[motename] = (0, 0)
-            self.connectivity.update_connectivity_matrix()
+
+        self.connectivity.update_connectivity_matrix()
 
         
         self.scheduleAtAsn(
@@ -339,6 +358,151 @@ class DiscreteEventEngine(threading.Thread):
             intraSlotOrder     = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
 
         )
+
+    def nextModelStep(self):
+        nextState = []
+        num_drones = len(self.motes)
+
+        for mote in self.motes:
+
+            current_coords = self.connectivity.coordinates[mote.id]
+            self.drone_pos[mote.id][0] = current_coords[0]
+            self.drone_pos[mote.id][1] = current_coords[1]
+
+        for i in range(num_drones):
+
+            if (i != 0):
+
+                
+
+                if(self.settings.control_mode == "all_motes"):
+                    x_i = numpy.ones((num_drones - 1)) * self.drone_pos[i][0]
+                    x_j = numpy.array([self.drone_pos[j][0] for j in range(num_drones) if j != i])
+                    y_i = numpy.ones((num_drones - 1)) * self.drone_pos[i][1]
+                    y_j = numpy.array([self.drone_pos[j][1] for j in range(num_drones) if j != i])
+                    z_i = numpy.ones((num_drones - 1, 2)) * self.drone_pos[i]
+                    z_j = numpy.array([self.drone_pos[j] for j in range(num_drones) if j != i])
+                    norm = numpy.linalg.norm(z_i - z_j, axis=1)**2
+
+                    R = self.settings.repulsion_constant # repulsion coefficient, EXPERIMENT
+                    rep_x = - R*numpy.sum((x_i - x_j)/(norm**2))
+                    rep_y = - R*numpy.sum((y_i - y_j)/(norm**2))
+
+                    A = 0.001 # attraction coefficient, EXPERIMENT
+                    atr_x = 4*A*A*numpy.sum(norm*(x_i - x_j)*numpy.exp(A*(norm)))
+                    atr_y = 4*A*A*numpy.sum(norm*(y_i - y_j)*numpy.exp(A*(norm)))
+
+                    # clip velocities before upating are somewhat arbitrary
+                    self.drone_vels[i][0] = - numpy.clip(rep_x + atr_x, -20, 20)
+                    self.drone_vels[i][1] = - numpy.clip(rep_y + atr_y, -20, 20)
+
+                elif(self.settings.control_mode == "parent_drag"):
+                    parent = self.get_mote_by_mote_id(i).rpl.of.get_preferred_parent()
+                    if parent != None:
+                        #print parent
+                        topology = self.get_mote_by_mote_id(0).rpl.parentChildfromDAOs
+                        #print topology
+                        find_children = lambda d , p : [k for k in d.keys() if d.get(k) == p]
+
+                        my_addr = netaddr.EUI(self.get_mote_by_mote_id(i).get_mac_addr())
+                        prefix = netaddr.IPAddress('fd00::')
+                        #print my_addr
+                        #print str(my_addr.ipv6(prefix))
+
+                        children = find_children(topology,str(my_addr.ipv6(prefix)))
+                        #print children
+                        parent_id=self.get_mote_by_mac_addr(parent).id
+                        #print parent_id
+                        x_i = numpy.ones((num_drones - 1)) * self.drone_pos[i][0]
+                        x_j = numpy.array([self.drone_pos[j][0] for j in range(num_drones) if j != i])
+                        y_i = numpy.ones((num_drones - 1)) * self.drone_pos[i][1]
+                        y_j = numpy.array([self.drone_pos[j][1] for j in range(num_drones) if j != i])
+                        z_i = numpy.ones((num_drones - 1, 2)) * self.drone_pos[i]
+                        z_j = numpy.array([self.drone_pos[j] for j in range(num_drones) if j != i])
+                        norm = numpy.linalg.norm(z_i - z_j, axis=1)**2
+
+                        R = self.settings.repulsion_constant # repulsion coefficient, EXPERIMENT
+                        rep_x = - R*numpy.sum((x_i - x_j)/(norm**2))
+                        rep_y = - R*numpy.sum((y_i - y_j)/(norm**2))
+
+                        parent_coords = self.drone_pos[parent_id]
+                        parent_norm_2 = numpy.linalg.norm(numpy.array(parent_coords)-numpy.array(self.drone_pos[i]))**2
+
+
+
+                        if(len(children)>0):
+
+
+                            x_i = numpy.ones(len(children)) * self.drone_pos[i][0]
+
+                            x_j = numpy.array([self.drone_pos[int(child.split(":")[-1])][0] for child in children])        
+
+                            y_i = numpy.ones(len(children)) * self.drone_pos[i][1]
+
+                            y_j = numpy.array([self.drone_pos[int(child.split(":")[-1])][1] for child in children])  
+
+ 
+
+
+                            stacked = numpy.vstack([x_i,y_i])
+
+                            stacked_j = numpy.vstack([x_j,y_j])
+                            #print stacked
+                            #print stacked_j
+                            norm_child = numpy.linalg.norm(stacked-stacked_j, axis=0)**2
+                            #print norm_child
+
+                            A = 5 # attraction coefficient, EXPERIMENT
+                            atr_x_child = 4*A*A*numpy.sum(norm_child*(x_i - x_j)*numpy.exp(A*(norm_child)))
+                            atr_y_child = 4*A*A*numpy.sum(norm_child*(y_i - y_j)*numpy.exp(A*(norm_child))) 
+
+                        else:
+                            atr_x_child = 0
+                            atr_y_child = 0 
+                        #y_i = numpy.ones(len(children)) * self.drone_pos[i][1]
+
+                        #norm = numpy.linalg.norm(z_i - z_j, axis=1)**2
+
+
+                        A = 5 # attraction coefficient, EXPERIMENT
+                        atr_x = 4*A*A*parent_norm_2*(numpy.array(self.drone_pos[i][0])-numpy.array(parent_coords[0]))*numpy.exp(A*(parent_norm_2)) + atr_x_child
+                        atr_y = 4*A*A*parent_norm_2*(numpy.array(self.drone_pos[i][1])-numpy.array(parent_coords[1]))*numpy.exp(A*(parent_norm_2)) + atr_y_child
+
+                        #print atr_x - atr_x_child, atr_x
+                        # clip velocities before upating are somewhat arbitrary
+                        self.drone_vels[i][0] = - numpy.clip(rep_x + atr_x, -20, 20)
+                        self.drone_vels[i][1] = - numpy.clip(rep_y + atr_y, -20, 20)
+
+                        self.drone_vels[i][0] += self.settings.constant_vel
+
+
+            #dagroot is stationary
+            elif (i == 0):
+                self.drone_vels[i][0] = 0
+                self.drone_vels[i][1] = 0
+        for mote in self.motes:
+            current_coords = self.connectivity.coordinates[mote.id]
+            # update position, divide by 1000 to convert to km
+            self.connectivity.coordinates[mote.id] = (current_coords[0] + self.drone_vels[mote.id][0]*self.settings.location_update_period*self.settings.tsch_slotDuration/1000,
+                                                        current_coords[1] + self.drone_vels[mote.id][1]*self.settings.location_update_period*self.settings.tsch_slotDuration/1000
+                                                        )
+            #self.drone_pos[i][0] += self.drone_vels[i][0]*self.settings.location_update_period*self.settings.tsch_slotDuration
+            #self.drone_pos[i][1] += self.drone_vels[i][1]*self.settings.location_update_period*self.settings.tsch_slotDuration
+
+        #ani = animation.FuncAnimation(self.fig, animate, interval=1)
+
+        #plt.plot()
+        #plt.show()
+        #plt.close()
+        #sys.exit()
+
+        return self.drone_pos
+ 
+    def calcRewards(self):
+
+        return 0
+
+
 
     # ======================== private ========================================
 
@@ -434,6 +598,29 @@ class SimEngine(DiscreteEventEngine):
         for i in range(len(self.motes)):
             self.motes[i].boot()
     
+        #initialize animation
+        self.size =  (1000, 300)
+        #style.use('fivethirtyeight')
+
+        self.fig, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw = {'height_ratios':[2, 1, 1]})
+        self.fig.tight_layout()
+
+        self.drones = []
+        self.drone_rects = []
+        self.drone_pos = {}
+        self.drone_vels = []
+        start_sep = 5
+        (w, h) = (self.size[0]/2 , self.size[1]/2)
+        for mote in self.motes:
+
+            self.drone_pos[mote.id] = [w, h + start_sep*numpy.floor((mote.id+1)/2)*(-1)**(i+1)]
+            if (mote.id == 1):
+                self.drone_vels.append([self.settings.constant_vel, 0.0])
+            else:
+                self.drone_vels.append([0.0, 0.0])
+
+   
+
     def _routine_thread_started(self):
         # log
         self.log(

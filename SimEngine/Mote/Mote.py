@@ -59,6 +59,11 @@ class Mote(object):
         self.radio                     = radio.Radio(self)
         self.batt                      = batt.Batt(self)
 
+        #for deep RL rewards
+        self.dropped_packets           = 0
+        self.rpl_updates               = 0
+        
+
     # ======================= stack ===========================================
 
     # ===== role

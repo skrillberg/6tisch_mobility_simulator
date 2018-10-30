@@ -869,8 +869,8 @@ class PisterHackModel(object):
             )
         else:
             rssi = (
-                mu+self.PISTER_HACK_LOWER_SHIFT/2 -
-                random.expovariate(2.0/self.PISTER_HACK_LOWER_SHIFT)
+                mu+20 +0*self.PISTER_HACK_LOWER_SHIFT/2 -
+                0*random.expovariate(2.0/self.PISTER_HACK_LOWER_SHIFT +20)
             )            
 
         return rssi
