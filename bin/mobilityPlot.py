@@ -27,8 +27,10 @@ dirname = "SimData/20181016-120404-311"
 no_figures = False
 plot_all = False
 plot_mote_num = 1
+animation = False
+matplotlib.use('TkAgg')
 # =========================== defines =========================================
-
+imgs =[]
 DAGROOT_ID = 0  # we assume first mote is DAGRoot
 DAGROOT_IP = 'fd00::1:0'
 save_data_ebs = [] #list of dicts
@@ -330,9 +332,10 @@ def load_data(inputfile):
                         plt.clf()
 
                 if 'location' in allstats[run][mote_num]:
+                    
                     print "Plotting Locations and Topology"
                     locations = pandas.DataFrame.from_dict(allstats[run][mote_num]['location'])
-                    plt.figure()
+                    fig = plt.figure()
                     for mote in allstats[run].keys():
                         mote_traj = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
                         
@@ -367,6 +370,44 @@ def load_data(inputfile):
                 #print "dataline ", dataline
                 #print save_data_ebs
                 
+                if 'location' in allstats[run][mote_num] and animation:
+                    
+                    print "Plotting Animation Frames"
+                    global imgs
+   
+                    
+                    #build animation dataframe
+                    anidata = {}
+                    for mote in allstats[run].keys():
+                        anidata[mote] = allstats[run][mote]['location']
+                    anidata = pandas.DataFrame.from_dict(anidata)
+
+                    print anidata.shape
+                    print range(0,anidata.shape[0],100)
+                    for timestep in range(0,anidata.shape[0],100):
+                        fig = plt.figure()
+                        print timestep
+                        for mote in anidata.keys():
+                            #print mote
+                            #print anidata.iloc[timestep]
+                            mote_loc_x = anidata.iloc[timestep][mote]["x"]
+                            mote_loc_y = anidata.iloc[timestep][mote]["y"]
+                            #plt.plot(mote_traj['x'],mote_traj['y'])
+                            plt.scatter(mote_loc_x,mote_loc_y)
+                            plt.annotate(str(mote),(mote_loc_x,mote_loc_y))
+                        #if no_figures:
+                         #   plt.clf()
+                        
+                            if 'churn' in allstats[run][mote] and 'locationd' in allstats[run][mote]:
+                                churn = pandas.DataFrame.from_dict(allstats[run][mote]['churn'])
+                                #print str(churn['parent'].iloc[-1][-2:])
+                                parent_num = int(str(churn['parent'].iloc[timestep][-2:]),16)
+                                child_location = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
+                                parent_location = pandas.DataFrame.from_dict(allstats[run][parent_num]['location'])
+                                plt.plot((child_location['x'].iloc[timestep],parent_location['x'].iloc[timestep]),(child_location['y'].iloc[timestep],parent_location['y'].iloc[timestep]), '--')
+                        imgs.append((plt.gca().add_image(),))
+                        plt.clf()
+
                 for mote_num in range(1,2):
                     #print "mote number: ",mote_num
                     if 'etx' in allstats[run][mote_num]:
@@ -480,4 +521,10 @@ plt.title("EB rx rate vs. EB prob")
 plt.ylabel("RX rate per Neighbor")
 plt.xlabel("EB prob")
 '''
+
+if animation:
+    fig2 = plt.figure()
+    #canvas = matplotlib.backends.backend_tkagg.FigureCanvasTkAgg(self.f,toplevel)
+    im_ani = matplotlib.animation.ArtistAnimation(fig2, imgs, interval=50, repeat_delay=3000,
+                                   blit=True)
 plt.show()

@@ -25,6 +25,11 @@ from matplotlib import style
 import sys
 import pandas
 import netaddr
+import tensorflow as tf
+import tensorflow.contrib.layers as layers
+
+import dqn
+from dqn_utils import *
 
 
 # =========================== defines =========================================
@@ -43,7 +48,7 @@ class DiscreteEventEngine(threading.Thread):
         return cls._instance
     #===== end singleton
 
-    def __init__(self, cpuID=None, run_id=None, verbose=False):
+    def __init__(self, cpuID=None, run_id=None, verbose=False,session = None, alg = None):
 
         #===== singleton
         cls = type(self)
@@ -68,7 +73,8 @@ class DiscreteEventEngine(threading.Thread):
             self.events                         = []
             self.random_seed                    = None
             self._init_additional_local_variables()
-
+            self.session                        = session
+            self.alg                            = alg
             # initialize parent class
             threading.Thread.__init__(self)
             self.name                           = 'DiscreteEventEngine'
@@ -366,8 +372,8 @@ class DiscreteEventEngine(threading.Thread):
         for mote in self.motes:
 
             current_coords = self.connectivity.coordinates[mote.id]
-            self.drone_pos[mote.id][0] = current_coords[0]
-            self.drone_pos[mote.id][1] = current_coords[1]
+            self.drone_pos[mote.id][0] = current_coords[0]*1000
+            self.drone_pos[mote.id][1] = current_coords[1]*1000
 
         for i in range(num_drones):
 
@@ -435,11 +441,11 @@ class DiscreteEventEngine(threading.Thread):
 
                             x_i = numpy.ones(len(children)) * self.drone_pos[i][0]
 
-                            x_j = numpy.array([self.drone_pos[int(child.split(":")[-1])][0] for child in children])        
+                            x_j = numpy.array([self.drone_pos[int(child.split(":")[-1],16)][0] for child in children])        
 
                             y_i = numpy.ones(len(children)) * self.drone_pos[i][1]
 
-                            y_j = numpy.array([self.drone_pos[int(child.split(":")[-1])][1] for child in children])  
+                            y_j = numpy.array([self.drone_pos[int(child.split(":")[-1],16)][1] for child in children])  
 
  
 
@@ -452,9 +458,9 @@ class DiscreteEventEngine(threading.Thread):
                             norm_child = numpy.linalg.norm(stacked-stacked_j, axis=0)**2
                             #print norm_child
 
-                            A = 5 # attraction coefficient, EXPERIMENT
-                            atr_x_child = 4*A*A*numpy.sum(norm_child*(x_i - x_j)*numpy.exp(A*(norm_child)))
-                            atr_y_child = 4*A*A*numpy.sum(norm_child*(y_i - y_j)*numpy.exp(A*(norm_child))) 
+                            A = .0001 # attraction coefficient, EXPERIMENT
+                            atr_x_child = 4*A*A*numpy.sum(norm_child*(x_i - x_j)*numpy.exp(A*(norm_child)))/len(children)
+                            atr_y_child = 4*A*A*numpy.sum(norm_child*(y_i - y_j)*numpy.exp(A*(norm_child)))/len(children)
 
                         else:
                             atr_x_child = 0
@@ -464,7 +470,7 @@ class DiscreteEventEngine(threading.Thread):
                         #norm = numpy.linalg.norm(z_i - z_j, axis=1)**2
 
 
-                        A = 5 # attraction coefficient, EXPERIMENT
+                        A = .0001 # attraction coefficient, EXPERIMENT
                         atr_x = 4*A*A*parent_norm_2*(numpy.array(self.drone_pos[i][0])-numpy.array(parent_coords[0]))*numpy.exp(A*(parent_norm_2)) + atr_x_child
                         atr_y = 4*A*A*parent_norm_2*(numpy.array(self.drone_pos[i][1])-numpy.array(parent_coords[1]))*numpy.exp(A*(parent_norm_2)) + atr_y_child
 
@@ -472,8 +478,8 @@ class DiscreteEventEngine(threading.Thread):
                         # clip velocities before upating are somewhat arbitrary
                         self.drone_vels[i][0] = - numpy.clip(rep_x + atr_x, -20, 20)
                         self.drone_vels[i][1] = - numpy.clip(rep_y + atr_y, -20, 20)
-
-                        self.drone_vels[i][0] += self.settings.constant_vel
+                        if(i ==1 ):
+                            self.drone_vels[i][0] += self.settings.constant_vel
 
 
             #dagroot is stationary
@@ -615,11 +621,24 @@ class SimEngine(DiscreteEventEngine):
 
             self.drone_pos[mote.id] = [w, h + start_sep*numpy.floor((mote.id+1)/2)*(-1)**(i+1)]
             if (mote.id == 1):
-                self.drone_vels.append([self.settings.constant_vel, 0.0])
+                self.drone_vels.append([0.0, 0.0])
             else:
                 self.drone_vels.append([0.0, 0.0])
 
-   
+        
+
+
+
+
+    def lander_model(obs, num_actions, scope, reuse=False):
+        with tf.variable_scope(scope, reuse=reuse):
+            out = obs
+            with tf.variable_scope("action_value"):
+                out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.relu)
+                out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.relu)
+                out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
+
+            return out
 
     def _routine_thread_started(self):
         # log

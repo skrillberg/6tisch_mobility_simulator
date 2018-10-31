@@ -10,16 +10,16 @@
         "combination": {
             "exec_numMotes":                               [10],
             "tsch_slotframeLength":                        [13],
-            "tsch_probBcast_ebProb":                       [0.7]
+            "tsch_probBcast_ebProb":                       [0.1]
         },
         "regular": {
-            "exec_numSlotframesPerRun":                    2000,
+            "exec_numSlotframesPerRun":                    1000,
             "exec_randomSeed":                             "random",
 
             "secjoin_enabled":                             true,
 
             "app":                                         "AppPeriodic",
-            "app_pkPeriod":                                0.5,
+            "app_pkPeriod":                                1,
             "app_pkPeriodVar":                             0.05,
             "app_pkLength":                                90,
             "app_burstTimestamp":                          null,
@@ -59,8 +59,8 @@
             "drift_delay":                                20000,
             "location_update_period":                      10,
             "pister_hack_drop":                            40,
-            "constant_vel":                                10,
-            "repulsion_constant":                          0.000001,
+            "constant_vel":                                19,
+            "repulsion_constant":                          0.00000001,
             "control_mode" :                                "parent_drag"
         }
     },

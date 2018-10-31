@@ -32,8 +32,16 @@ from SimEngine import SimConfig,   \
                       SimEngine,   \
                       SimLog, \
                       SimSettings, \
-                      Connectivity
+                      Connectivity, \
+                      dqn, \
+                      dqn_utils
 
+import tensorflow as tf
+import tensorflow.contrib.layers as layers
+
+#import dqn
+#from dqn_utils import *
+#import run_dqn_atari
 # =========================== helpers =========================================
 
 def parseCliParams():
@@ -63,7 +71,7 @@ def printOrLog(cpuID, pid, output, verbose):
     else:
         print output
 
-def runSimCombinations(params):
+def runSimCombinations(session, alg, params):
     """
     Runs simulations for all combinations of simulation settings.
     This function may run independently on different CPUs.
@@ -114,7 +122,7 @@ def runSimCombinations(params):
             settings.setCombinationKeys(combinationKeys)
             simlog           = SimLog.SimLog()
             simlog.set_log_filters(simconfig.logging)
-            simengine        = SimEngine.SimEngine(run_id=run_id, verbose=verbose)
+            simengine        = SimEngine.SimEngine(run_id=run_id, verbose=verbose, session = session, alg = alg)
 
 
             # start simulation run
@@ -186,6 +194,12 @@ def merge_output_files(folder_path):
                     outputfile.write(inputfile.read())
         shutil.rmtree(os.path.join(folder_path, subfolder))
 
+
+def get_available_gpus():
+    from tensorflow.python.client import device_lib
+    local_device_protos = device_lib.list_local_devices()
+    return [x.physical_device_desc for x in local_device_protos if x.device_type == 'GPU']
+
 # =========================== main ============================================
 
 def main():
@@ -198,6 +212,73 @@ def main():
     # sim config
     simconfig = SimConfig.SimConfig(configfile=cliparams['config'])
     assert simconfig.version == 0
+
+    #initilaize tf
+    #tensorflow init code########################
+
+
+    tf.reset_default_graph()
+    tf_config = tf.ConfigProto(
+    inter_op_parallelism_threads=1,
+    intra_op_parallelism_threads=1)
+    session = tf.Session(config=tf_config)
+    print("AVAILABLE GPUS: ", get_available_gpus())
+
+    num_timesteps = 1000
+
+    num_iterations = float(num_timesteps) / 4.0
+
+    lr_multiplier = 1.0
+    lr_schedule = dqn_utils.PiecewiseSchedule([
+                                         (0,                   1e-4 * lr_multiplier),
+                                         (num_iterations / 10, 1e-4 * lr_multiplier),
+                                         (num_iterations / 2,  5e-5 * lr_multiplier),
+                                    ],
+                                    outside_value=5e-5 * lr_multiplier)
+
+    optimizer = dqn.OptimizerSpec(
+        constructor=tf.train.AdamOptimizer,
+        kwargs=dict(epsilon=1e-4),
+        lr_schedule=lr_schedule
+    )
+    def stopping_criterion(env, t):
+        # notice that here t is the number of steps of the wrapped env,
+        # which is different from the number of steps in the underlying env
+        return get_wrapper_by_name(env, "Monitor").get_total_steps() >= num_timesteps
+
+    def lander_model(obs, num_actions, scope, reuse=False):
+        with tf.variable_scope(scope, reuse=reuse):
+            out = obs
+            with tf.variable_scope("action_value"):
+                out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.relu)
+                out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.relu)
+                out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
+
+            return out
+
+    exploration_schedule = dqn_utils.PiecewiseSchedule(
+        [
+            (0, 1.0),
+            (10, 0.1),
+            (num_iterations / 2, 0.01),
+        ], outside_value=0.01
+    )
+
+    alg = dqn.QLearner(env=None,
+                        q_func=lander_model,
+                        optimizer_spec=optimizer,
+                        session=session,
+                        exploration=exploration_schedule,
+                        stopping_criterion=stopping_criterion,
+                        replay_buffer_size=1000000,
+                        batch_size=32,
+                        gamma=0.99,
+                        learning_starts=50000,
+                        learning_freq=4,
+                        frame_history_len=4,
+                        target_update_freq=10000,
+                        grad_norm_clipping=10,
+                        double_q=True)
 
     #=== run simulations
 
@@ -213,7 +294,7 @@ def main():
     if numCPUs == 1:
         # run on single CPU
 
-        runSimCombinations({
+        runSimCombinations(session, alg, {
             'cpuID':              0,
             'pid':                os.getpid(),
             'numRuns':            simconfig.execution.numRuns,
