@@ -298,6 +298,8 @@ class DiscreteEventEngine(threading.Thread):
 
     # === location update
     def logInitialLocation(self):
+        self.alg.last_obs = numpy.array(self.connectivity.coordinates.values())
+        print "logged"
         for motename in self.connectivity.coordinates:
 
        
@@ -313,13 +315,14 @@ class DiscreteEventEngine(threading.Thread):
                 }
             )
 
+
     def updateLocation(self):
 
         square_side        = self.settings.conn_random_square_side
 
         #print "location updated placeholder", self.asn
         #print self.connectivity.coordinates
-        self.nextModelStep()
+        rewards = self.nextModelStep()
 
         
         for motename in self.connectivity.coordinates:
@@ -351,6 +354,7 @@ class DiscreteEventEngine(threading.Thread):
                     'x': self.connectivity.coordinates[motename][0],
                     'y': self.connectivity.coordinates[motename][1],
                     'z':      0,
+                    'reward' : rewards[motename]
                 }
             )
 
@@ -368,6 +372,11 @@ class DiscreteEventEngine(threading.Thread):
     def nextModelStep(self):
         nextState = []
         num_drones = len(self.motes)
+        rewards = {}
+        if self.alg.last_obs is None:
+            self.alg.last_obs = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
+        #deepRL observations
+        last_observations = self.connectivity.coordinates
 
         for mote in self.motes:
 
@@ -376,7 +385,7 @@ class DiscreteEventEngine(threading.Thread):
             self.drone_pos[mote.id][1] = current_coords[1]*1000
 
         for i in range(num_drones):
-
+            rewards[self.get_mote_by_mote_id(i).id] = self.calcRewards(self.get_mote_by_mote_id(i),self.drone_pos[i]) #calc current rewards from last action
             if (i != 0):
 
                 
@@ -481,6 +490,23 @@ class DiscreteEventEngine(threading.Thread):
                         if(i ==1 ):
                             self.drone_vels[i][0] += self.settings.constant_vel
 
+                elif(self.settings.control_mode == "deep_rl"):
+                    #feed observations into nn policy 
+                    #print "hiiiii"
+                    actions = self.alg.step_env(numpy.array(last_observations.values()))
+                    #print actions 
+                    action_list = [(0,0),
+                                    (0,4),
+                                    (4,0),
+                                    (2,2),
+                                    (0,-4),
+                                    (-4,0),
+                                    (-2,-2),
+                                    (-2,2),
+                                    (2,-2)
+                                ]
+                    self.drone_vels[i][0] = action_list[actions][0]
+                    self.drone_vels[i][1] = action_list[actions][1]
 
             #dagroot is stationary
             elif (i == 0):
@@ -494,7 +520,7 @@ class DiscreteEventEngine(threading.Thread):
                                                         )
             #self.drone_pos[i][0] += self.drone_vels[i][0]*self.settings.location_update_period*self.settings.tsch_slotDuration
             #self.drone_pos[i][1] += self.drone_vels[i][1]*self.settings.location_update_period*self.settings.tsch_slotDuration
-
+        return rewards
         #ani = animation.FuncAnimation(self.fig, animate, interval=1)
 
         #plt.plot()
@@ -504,9 +530,23 @@ class DiscreteEventEngine(threading.Thread):
 
         return self.drone_pos
  
-    def calcRewards(self):
+    def calcRewards(self,mote,position):
 
-        return 0
+        stats = mote.getRewards()
+        mote.resetRewards()
+
+        #print stats
+        etx_array = numpy.array(list(stats['etxs'].values()))
+
+        etx_avg = numpy.nanmean(etx_array)
+
+        #print numpy.array(position)
+        #print numpy.array(self.settings.goal_loc)
+        d_goal = numpy.linalg.norm(numpy.array(position) - numpy.array(self.settings.goal_loc)) #goal in meters
+        #print d_goal
+        #print stats["packets_lost"]
+        
+        return -(etx_avg-1)*10 -stats["packets_lost"]*10 - stats["rpl_churn"]*10 - d_goal
 
 
 
@@ -626,6 +666,7 @@ class SimEngine(DiscreteEventEngine):
                 self.drone_vels.append([0.0, 0.0])
 
         
+        self.goal_loc = self.settings.goal_loc
 
 
 

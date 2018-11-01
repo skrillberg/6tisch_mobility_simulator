@@ -32,7 +32,8 @@ class QLearner(object):
     grad_norm_clipping=10,
     rew_file=None,
     double_q=True,
-    lander=False):
+    lander=False,
+    initial_state=None):
     """Run Deep Q-learning algorithm.
 
     You can specify your own convnet using q_func.
@@ -104,7 +105,7 @@ class QLearner(object):
     ###############
 
     input_shape = (10, )
-    self.num_actions = 8
+    self.num_actions = 9
 
     # set up placeholders
     # placeholder for current observation (or state)
@@ -203,7 +204,7 @@ class QLearner(object):
     self.num_param_updates = 0
     self.mean_episode_reward      = -float('nan')
     self.best_mean_episode_reward = -float('inf')
-    self.last_obs = None
+    self.last_obs = initial_state
     self.log_every_n_steps = 10000
 
     self.start_time = None
@@ -212,7 +213,7 @@ class QLearner(object):
   def stopping_criterion_met(self):
     return self.stopping_criterion is not None and self.stopping_criterion(self.env, self.t)
 
-  def step_env(self):
+  def step_env(self,observations):
     ### 2. Step the env and store the transition
     # At this point, "self.last_obs" contains the latest observation that was
     # recorded from the simulator. Here, your code needs to store this
@@ -247,6 +248,7 @@ class QLearner(object):
 
     # YOUR CODE HERE
     #save last_obs in replay buffer
+    #print self.last_obs
     self.replay_buffer_index = self.replay_buffer.store_frame(self.last_obs) #returns index of where that obs is stored
 
    
@@ -284,7 +286,10 @@ class QLearner(object):
     else:
       action = np.random.randint(0,self.num_actions)
     #step environment forward
-    obs, reward, done, info = self.env.step(action)
+    return action 
+
+  def store_effect(obs,reward,done):
+    
 
     #q_targets = self.session.run(self.targets,feed_dict={self.obs_tp1_ph : obs,
     #                                                          self.act_t_ph : actions})
@@ -296,8 +301,8 @@ class QLearner(object):
                                     done=done
                                     )
     #reset if done
-    if done:
-      obs = self.env.reset()
+    #if done:
+    #  obs = self.env.reset()
 
     #save obs
     self.last_obs = obs

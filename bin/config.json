@@ -61,7 +61,8 @@
             "pister_hack_drop":                            40,
             "constant_vel":                                19,
             "repulsion_constant":                          0.00000001,
-            "control_mode" :                                "parent_drag"
+            "control_mode" :                                "deep_rl",
+            "goal_loc" :                                   [1000,0.0]
         }
     },
     "logging":                                             "all",

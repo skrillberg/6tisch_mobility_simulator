@@ -109,7 +109,7 @@ def load_data(inputfile):
             asn        = logline['_asn']
             x          = logline['x']
             y          = logline['y']
-
+            reward      = logline['reward']
             # populate
             if mote_id not in allstats[run_id]:
                 allstats[run_id][mote_id] = {}
@@ -121,7 +121,8 @@ def load_data(inputfile):
             allstats[run_id][mote_id]['location'].append({'asn' : asn,
                 'time_s' : asn*file_settings['tsch_slotDuration'],
                 'x' : x,
-                'y' : y}
+                'y' : y,
+                'reward' : reward}
                 ) 
 
         elif   logline['_type'] == SimLog.LOG_LOCATION_CONNECTIVITY ['type']:
@@ -365,6 +366,11 @@ def load_data(inputfile):
 
                     plt.subplot(313)
                     plt.plot(locations['time_s'],numpy.sqrt(numpy.square(locations['x']) + numpy.square(locations['y'])))
+
+                    plt.figure()
+                    print locations
+                    plt.plot(locations['time_s'],locations['reward'])
+                    plt.title("rewards")
                     #if no_figures:
                         #plt.clf()
                 #print "dataline ", dataline
@@ -415,6 +421,7 @@ def load_data(inputfile):
                         #print etxs
                         plt.figure()
                         plt.plot(etxs['time_s'],etxs['etx'])
+                        plt.title("ETX")
                         if no_figures:
                             plt.clf()
                     if 'neighbor_table' in allstats[run][mote_num]:

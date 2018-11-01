@@ -118,6 +118,20 @@ class Mote(object):
         with self.dataLock:
             return self.x, self.y
 
+    def getRewards(self):
+        with self.dataLock:
+            rewards = {"packets_lost" : self.dropped_packets,
+                        "rpl_churn"   : self.rpl_updates,
+                        "etxs"         : self.rpl.get_etx()
+
+            }
+            return rewards
+
+    def resetRewards(self):
+        with self.dataLock:
+            self.dropped_packets = 0
+            self.rpl_updates = 0
+
     # ==== battery
 
     def boot(self):
@@ -178,7 +192,7 @@ class Mote(object):
                 "reason":    reason,
             }
         )
-
+        self.dropped_packets +=1
         # remove all the element of packet so it cannot be processed further
         # Note: this is useless, but allows us to catch bugs in case packet is further processed
         for k in packet.keys():

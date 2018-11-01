@@ -70,6 +70,8 @@ class Rpl(object):
         self._tx_stat                  = {}      # indexed by mote_id
         self.dis_mode = self._get_dis_mode()
 
+        self.etx = {}
+        self.rpl_updates = 0
     #======================== public ==========================================
 
     # getters/setters
@@ -82,6 +84,15 @@ class Rpl(object):
             return None
         else:
             return int(self.of.get_rank() / d.RPL_MINHOPRANKINCREASE)
+
+    def get_etx(self):
+        return self.of.get_etxs()
+
+    def get_churn(self):
+        return self.rpl_updates
+
+    def reset_churn(self):
+        self.rpl_updates = 0
 
     def addParentChildfromDAOs(self, parent_addr, child_addr):
         self.parentChildfromDAOs[child_addr] = parent_addr
@@ -121,7 +132,7 @@ class Rpl(object):
                 "preferredParent": new_preferred
             }
         )
-
+        self.rpl_updates += 1
         # trigger DAO
         self._schedule_sendDAO(firstDAO=True)
 
@@ -422,6 +433,7 @@ class RplOFNone(object):
         self.rpl = rpl
         self.rank = None
         self.preferred_parent = None
+        self.etxs = {}
 
     def update(self, dio):
         # do nothing on the root
@@ -443,6 +455,8 @@ class RplOFNone(object):
         # do nothing
         pass
 
+    def get_etxs(self):
+        return self.etxs
 
 class RplOF0(object):
 
@@ -461,7 +475,7 @@ class RplOF0(object):
         self.neighbors = []
         self.rank = None
         self.preferred_parent = None
-
+        self.etxs = {}
     @property
     def parents(self):
         return (
@@ -483,6 +497,9 @@ class RplOF0(object):
 
     def get_rank(self):
         return self._calculate_rank(self.preferred_parent)
+
+    def get_etxs(self):
+        return self.etxs
 
     def get_preferred_parent(self):
         if self.preferred_parent is None:
@@ -556,7 +573,13 @@ class RplOF0(object):
             "etx": etx
             
         }
+        
         )
+        #print neighbor['mac_addr']
+        if etx is None:
+            etx = float('NaN') 
+        self.etxs[neighbor['mac_addr']] = etx
+
     def _calculate_rank(self, neighbor):
         if (
                 (neighbor is None)

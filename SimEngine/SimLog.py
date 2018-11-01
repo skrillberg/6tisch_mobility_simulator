@@ -89,7 +89,7 @@ LOG_PROP_INTERFERENCE             = {'type': 'prop.interference',         'keys'
 LOG_PROP_DROP_LOCKON              = {'type': 'prop.drop_lockon' ,         'keys': ['_mote_id','channel','lockon_transmission']}
 
 # === location
-LOG_LOCATION_UPDATE               = {'type': 'loc.update',         'keys': ['_mote_id','x','y','z']}
+LOG_LOCATION_UPDATE               = {'type': 'loc.update',         'keys': ['_mote_id','x','y','z','reward']}
 LOG_LOCATION_CONNECTIVITY         = {'type' : 'loc.connectivity',    'keys': ['src_mote','dst_mote','pdr','rssi']}
 
 # === mobility metrics
