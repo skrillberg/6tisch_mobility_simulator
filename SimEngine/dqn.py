@@ -33,7 +33,8 @@ class QLearner(object):
     rew_file=None,
     double_q=True,
     lander=False,
-    initial_state=None):
+    initial_state=None,
+    observation_dim = None):
     """Run Deep Q-learning algorithm.
 
     You can specify your own convnet using q_func.
@@ -104,9 +105,9 @@ class QLearner(object):
     # BUILD MODEL #
     ###############
 
-    input_shape = (10, )
+    input_shape = (2, )
     self.num_actions = 9
-
+    self.curr_reward = 0
     # set up placeholders
     # placeholder for current observation (or state)
     self.obs_t_ph              = tf.placeholder(
@@ -156,7 +157,7 @@ class QLearner(object):
 
     self.q_vals = q_func(obs_t_float,self.num_actions,"q_func") #predicts actions from observations
     q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='q_func') # collect parameters
-
+    print q_func_vars
 
     #create model for target network
     self.targets = q_func(obs_tp1_float,self.num_actions,"target_q_func")
@@ -223,7 +224,7 @@ class QLearner(object):
     # advanced one step, and the replay buffer should contain one more
     # transition.
     # Specifically, self.last_obs must point to the new latest observation.
-    # Useful functions you'll need to call:
+    # Usul functions you'll need to call:
     # obs, reward, done, info = env.step(action)
     # this steps the environment forward one step
     # obs = env.reset()
@@ -288,7 +289,7 @@ class QLearner(object):
     #step environment forward
     return action 
 
-  def store_effect(obs,reward,done):
+  def store_effect(self,obs,reward,action,done):
     
 
     #q_targets = self.session.run(self.targets,feed_dict={self.obs_tp1_ph : obs,
@@ -354,12 +355,22 @@ class QLearner(object):
       #print(obs_t_batch.shape) 
       #initialize
       if not self.model_initialized:
+        print(tf.local_variables())
+        print(tf.global_variables())
+        tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='q_func')
         initialize_interdependent_variables(self.session, tf.global_variables(), {
               self.obs_t_ph: obs_t_batch,
               self.obs_tp1_ph: obs_tp1_batch,
         }) 
+        print "model initialized"
+        #print(self.session.run(tf.report_uninitialized_variables()))
+
+          
         self.model_initialized = True
 
+      #print self.optimizer_spec.lr_schedule.value(self.t)
+      #print obs_t_batch.shape
+      self.curr_reward = np.mean(rew_batch)
       error,train,evals,q,action = self.session.run([self.total_error, self.train_fn, self.debug_eval_qs ,self.q_vals,self.act_t_ph],feed_dict={self.obs_t_ph : obs_t_batch,
                                                                     self.act_t_ph : act_batch,
                                                                     self.rew_t_ph : rew_batch,
@@ -368,27 +379,29 @@ class QLearner(object):
                                                                     self.learning_rate : self.optimizer_spec.lr_schedule.value(self.t)})
       # YOUR CODE HERE
       #print("q",q[0])
-      #print(error)
+      #print("error ", error)
       #print("action",action)
       #print("evaluated q",evals[0])
-      #print(yi[0],targets[0],target_max[0])
+      #print("exploration %f" % self.exploration.value(self.t))
+
+      #print("yis" , self.yi[0])
       #print(self.num_param_updates,self.target_update_freq,self.num_param_updates % self.target_update_freq )
       if self.num_param_updates % self.target_update_freq ==0: 
         #print("update target")
         self.session.run(self.update_target_fn)
       self.num_param_updates += 1
-
+    self.log_progress()
     self.t += 1
-
+    #print self.t
   def log_progress(self):
     episode_rewards = get_wrapper_by_name(self.env, "Monitor").get_episode_rewards()
 
-    if len(episode_rewards) > 0:
-      self.mean_episode_reward = np.mean(episode_rewards[-100:])
-
-    if len(episode_rewards) > 100:
-      self.best_mean_episode_reward = max(self.best_mean_episode_reward, self.mean_episode_reward)
-
+    #if len(episode_rewards) > 0:
+      #self.mean_episode_reward = np.mean(episode_rewards[-100:])
+    self.mean_episode_reward = self.curr_reward
+    #if len(episode_rewards) > 100:
+    #  self.best_mean_episode_reward = max(self.best_mean_episode_reward, self.mean_episode_reward)
+    self.mean_best_episode_reward = self.curr_reward
     if self.t % self.log_every_n_steps == 0 and self.model_initialized:
       print("Timestep %d" % (self.t,))
       print("mean reward (100 episodes) %f" % self.mean_episode_reward)

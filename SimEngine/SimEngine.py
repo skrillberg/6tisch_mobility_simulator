@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 import traceback
+import math
 
 import Mote
 import SimSettings
@@ -29,6 +30,7 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
 import dqn
+import dqn_utils
 from dqn_utils import *
 
 
@@ -73,8 +75,8 @@ class DiscreteEventEngine(threading.Thread):
             self.events                         = []
             self.random_seed                    = None
             self._init_additional_local_variables()
-            self.session                        = session
-            self.alg                            = alg
+            #self.session                        = session
+            #self.alg                            = alg
             # initialize parent class
             threading.Thread.__init__(self)
             self.name                           = 'DiscreteEventEngine'
@@ -373,10 +375,12 @@ class DiscreteEventEngine(threading.Thread):
         nextState = []
         num_drones = len(self.motes)
         rewards = {}
+        
         if self.alg.last_obs is None:
-            self.alg.last_obs = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
-        #deepRL observations
-        last_observations = self.connectivity.coordinates
+            #self.alg.last_obs = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
+            self.alg.last_obs = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))[0:2]
+
+        last_observations = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
 
         for mote in self.motes:
 
@@ -386,6 +390,7 @@ class DiscreteEventEngine(threading.Thread):
 
         for i in range(num_drones):
             rewards[self.get_mote_by_mote_id(i).id] = self.calcRewards(self.get_mote_by_mote_id(i),self.drone_pos[i]) #calc current rewards from last action
+            #print rewards
             if (i != 0):
 
                 
@@ -486,14 +491,131 @@ class DiscreteEventEngine(threading.Thread):
                         #print atr_x - atr_x_child, atr_x
                         # clip velocities before upating are somewhat arbitrary
                         self.drone_vels[i][0] = - numpy.clip(rep_x + atr_x, -20, 20)
-                        self.drone_vels[i][1] = - numpy.clip(rep_y + atr_y, -20, 20)
+                        self.drone_vels[i][1] = - numpy.clip(rep_y + atr_y, -20, 20) 
+                        if(i ==1 ):
+                            self.drone_vels[i][0] += self.settings.constant_vel
+
+                elif(self.settings.control_mode == "smart_choice"):
+                    parent = self.get_mote_by_mote_id(i).rpl.of.get_preferred_parent()
+                    neighbor_dict = self.get_mote_by_mote_id(i).rpl.of.neighbors
+                    neighbors = []
+                    for neighbor_entry in neighbor_dict:
+                        #print neighbor_entry
+                        mote_id = self.get_mote_by_mac_addr(neighbor_entry["mac_addr"]).id
+                        #print mote_id
+                        #print self.drone_pos[mote_id] 
+                        neighbors.append([mote_id, self.drone_pos[mote_id][0], self.drone_pos[mote_id][1]])
+                    
+
+                    target_location = numpy.tile(self.settings.goal_loc,(len(neighbors),1))
+            
+                    #print numpy.array(neighbors)
+                    if len(neighbors)>1:
+                        #print target_location, "goal location"
+                        distance = numpy.linalg.norm(numpy.array(neighbors)[:,1:] - target_location, axis=1)
+                        closest_neighbor = neighbors[numpy.argmax(distance)][0]
+                    elif len(neighbors)==1:
+                        closest_neighbor = neighbors[0][0]
+                    else:
+                        parent = None
+
+                    if parent != None:
+                        #print parent
+                        topology = self.get_mote_by_mote_id(0).rpl.parentChildfromDAOs
+                        #print topology
+                        find_children = lambda d , p : [k for k in d.keys() if d.get(k) == p]
+
+                        my_addr = netaddr.EUI(self.get_mote_by_mote_id(i).get_mac_addr())
+                        prefix = netaddr.IPAddress('fd00::')
+                        #print my_addr
+                        #print str(my_addr.ipv6(prefix))
+
+                        children = find_children(topology,str(my_addr.ipv6(prefix)))
+                        #print children
+                        
+                        #parent_id=self.get_mote_by_mac_addr(parent).id
+                        parent_id = closest_neighbor
+                        #print parent_id
+                        x_i = numpy.ones((num_drones - 1)) * self.drone_pos[i][0]
+                        x_j = numpy.array([self.drone_pos[j][0] for j in range(num_drones) if j != i])
+                        y_i = numpy.ones((num_drones - 1)) * self.drone_pos[i][1]
+                        y_j = numpy.array([self.drone_pos[j][1] for j in range(num_drones) if j != i])
+                        z_i = numpy.ones((num_drones - 1, 2)) * self.drone_pos[i]
+                        z_j = numpy.array([self.drone_pos[j] for j in range(num_drones) if j != i])
+                        norm = numpy.linalg.norm(z_i - z_j, axis=1)**2
+
+                        R = self.settings.repulsion_constant # repulsion coefficient, EXPERIMENT
+                        rep_x = - R*numpy.sum((x_i - x_j)/(norm**2))
+                        rep_y = - R*numpy.sum((y_i - y_j)/(norm**2))
+
+                        parent_coords = self.drone_pos[parent_id]
+                        parent_norm_2 = numpy.linalg.norm(numpy.array(parent_coords)-numpy.array(self.drone_pos[i]))**2
+
+
+
+                        if(len(children)>0):
+
+
+                            x_i = numpy.ones(len(children)) * self.drone_pos[i][0]
+
+                            x_j = numpy.array([self.drone_pos[int(child.split(":")[-1],16)][0] for child in children])        
+
+                            y_i = numpy.ones(len(children)) * self.drone_pos[i][1]
+
+                            y_j = numpy.array([self.drone_pos[int(child.split(":")[-1],16)][1] for child in children])  
+
+ 
+
+
+                            stacked = numpy.vstack([x_i,y_i])
+
+                            stacked_j = numpy.vstack([x_j,y_j])
+                            #print stacked
+                            #print stacked_j
+                            norm_child = numpy.linalg.norm(stacked-stacked_j, axis=0)**2
+                            #print norm_child
+
+                            A = .0001 # attraction coefficient, EXPERIMENT
+                            atr_x_child = 4*A*A*numpy.sum(norm_child*(x_i - x_j)*numpy.exp(A*(norm_child)))/len(children)
+                            atr_y_child = 4*A*A*numpy.sum(norm_child*(y_i - y_j)*numpy.exp(A*(norm_child)))/len(children)
+
+                        else:
+                            atr_x_child = 0
+                            atr_y_child = 0 
+                        #y_i = numpy.ones(len(children)) * self.drone_pos[i][1]
+
+                        #norm = numpy.linalg.norm(z_i - z_j, axis=1)**2
+
+
+                        A = .0001 # attraction coefficient, EXPERIMENT
+                        atr_x = 4*A*A*parent_norm_2*(numpy.array(self.drone_pos[i][0])-numpy.array(parent_coords[0]))*numpy.exp(A*(parent_norm_2)) + atr_x_child
+                        atr_y = 4*A*A*parent_norm_2*(numpy.array(self.drone_pos[i][1])-numpy.array(parent_coords[1]))*numpy.exp(A*(parent_norm_2)) + atr_y_child
+
+                        #print atr_x - atr_x_child, atr_x
+                        # clip velocities before upating are somewhat arbitrary
+                        self.drone_vels[i][0] = - numpy.clip(rep_x + atr_x, -20, 20)
+                        self.drone_vels[i][1] = - numpy.clip(rep_y + atr_y, -20, 20) 
                         if(i ==1 ):
                             self.drone_vels[i][0] += self.settings.constant_vel
 
                 elif(self.settings.control_mode == "deep_rl"):
                     #feed observations into nn policy 
                     #print "hiiiii"
-                    actions = self.alg.step_env(numpy.array(last_observations.values()))
+                    #store effects from last steps actions
+                                #deepRL observations
+                   
+                    done = 0
+                    if self.started:
+                        #print self.last_actions
+                        #print "reward: ", rewards[i]
+
+                        self.alg.store_effect(last_observations[i*2:i*2+2],rewards[i],self.last_actions[i],done)
+                        self.alg.update_model()
+
+
+                    actions = self.alg.step_env(last_observations[i*2:i*2+2])
+                    #print last_observations[i*2:i*2+2], actions
+                    self.last_actions[self.get_mote_by_mote_id(i).id] = actions
                     #print actions 
                     action_list = [(0,0),
                                     (0,4),
@@ -505,6 +627,7 @@ class DiscreteEventEngine(threading.Thread):
                                     (-2,2),
                                     (2,-2)
                                 ]
+
                     self.drone_vels[i][0] = action_list[actions][0]
                     self.drone_vels[i][1] = action_list[actions][1]
 
@@ -520,6 +643,7 @@ class DiscreteEventEngine(threading.Thread):
                                                         )
             #self.drone_pos[i][0] += self.drone_vels[i][0]*self.settings.location_update_period*self.settings.tsch_slotDuration
             #self.drone_pos[i][1] += self.drone_vels[i][1]*self.settings.location_update_period*self.settings.tsch_slotDuration
+        self.started = True
         return rewards
         #ani = animation.FuncAnimation(self.fig, animate, interval=1)
 
@@ -528,7 +652,7 @@ class DiscreteEventEngine(threading.Thread):
         #plt.close()
         #sys.exit()
 
-        return self.drone_pos
+        r#eturn self.drone_pos
  
     def calcRewards(self,mote,position):
 
@@ -545,8 +669,13 @@ class DiscreteEventEngine(threading.Thread):
         d_goal = numpy.linalg.norm(numpy.array(position) - numpy.array(self.settings.goal_loc)) #goal in meters
         #print d_goal
         #print stats["packets_lost"]
-        
-        return -(etx_avg-1)*10 -stats["packets_lost"]*10 - stats["rpl_churn"]*10 - d_goal
+        if math.isnan(etx_avg):
+            etx_avg = 1
+        #print etx_avg
+        #print stats["packets_lost"]*10
+        #print stats["rpl_churn"]*10
+
+        return -(etx_avg-1)*10*0 -stats["packets_lost"]*10*0 - stats["rpl_churn"]*10*0 - d_goal/1000
 
 
 
@@ -667,19 +796,14 @@ class SimEngine(DiscreteEventEngine):
 
         
         self.goal_loc = self.settings.goal_loc
+        self.last_actions ={}
+        self.started = False
 
 
 
 
-    def lander_model(obs, num_actions, scope, reuse=False):
-        with tf.variable_scope(scope, reuse=reuse):
-            out = obs
-            with tf.variable_scope("action_value"):
-                out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.relu)
-                out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.relu)
-                out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
 
-            return out
+
 
     def _routine_thread_started(self):
         # log
@@ -690,6 +814,73 @@ class SimEngine(DiscreteEventEngine):
                 "state":  "started"
             }
         )
+
+        ########start tensorflow#############
+        tf.reset_default_graph()
+        tf_config = tf.ConfigProto(
+        inter_op_parallelism_threads=8,
+        intra_op_parallelism_threads=8)
+        self.session = tf.Session(config=tf_config)
+        #print("AVAILABLE GPUS: ", get_available_gpus())
+
+        num_timesteps = self.settings.exec_numSlotframesPerRun * 13
+
+        num_iterations = float(num_timesteps) / 4
+
+        lr_multiplier = 1.0
+        lr_schedule = dqn_utils.PiecewiseSchedule([
+                                             (0,                   1e-4 * lr_multiplier),
+                                             (num_iterations / 10, 1e-4 * lr_multiplier),
+                                             (num_iterations / 2,  5e-5 * lr_multiplier),
+                                        ],
+                                        outside_value=5e-5 * lr_multiplier)
+
+        optimizer = dqn.OptimizerSpec(
+            constructor=tf.train.AdamOptimizer,
+            kwargs=dict(epsilon=1e-4),
+            lr_schedule=lr_schedule
+        )
+        def stopping_criterion(env, t):
+            # notice that here t is the number of steps of the wrapped env,
+            # which is different from the number of steps in the underlying env
+            return get_wrapper_by_name(env, "Monitor").get_total_steps() >= num_timesteps
+
+        def lander_model(obs, num_actions, scope, reuse=False):
+            with tf.variable_scope(scope, reuse=reuse):
+                out = obs
+                with tf.variable_scope("action_value"):
+                    out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.relu)
+                    out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.relu)
+                    out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
+
+                return out
+
+        exploration_schedule = dqn_utils.PiecewiseSchedule(
+            [
+                (0, 1.0),
+                (100000, 0.5),
+                (num_iterations / 2, 0.01),
+            ], outside_value=0.01
+        )
+
+        self.alg = dqn.QLearner(env=None,
+                        q_func=lander_model,
+                        optimizer_spec=optimizer,
+                        session=self.session,
+                        exploration=exploration_schedule,
+                        stopping_criterion=stopping_criterion,
+                        replay_buffer_size=1000000,
+                        batch_size=32,
+                        gamma=0.99,
+                        learning_starts=self.settings.steps_to_train,
+                        learning_freq=40,
+                        frame_history_len=4,
+                        target_update_freq=10000,
+                        grad_norm_clipping=10,
+                        double_q=True)
+            
+        ########tf code done##########################
+
         #schedule location update
         if self.settings.location_update:
             self.scheduleAtAsn(

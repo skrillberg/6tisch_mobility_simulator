@@ -5,6 +5,7 @@ import json
 import glob
 import sys
 from collections import OrderedDict
+import imageio
 
 # third party
 import matplotlib
@@ -312,7 +313,10 @@ def load_data(inputfile):
                     churn = pandas.DataFrame.from_dict(allstats[run][mote_num]['churn'])
                     #print churn
                     plt.figure()
+                    plt.tight_layout()
                     plt.step(churn['time_s'],churn['parent'])
+                    plt.xlabel('Time (s)')
+                    plt.ylabel('Network Parent')
                     if no_figures:
                         plt.clf()
 
@@ -341,6 +345,9 @@ def load_data(inputfile):
                         mote_traj = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
                         
                         plt.plot(mote_traj['x'],mote_traj['y'])
+                        plt.xlabel("X Coordinate (km)")
+                        plt.ylabel("Y Coordinate (km)")
+
                         plt.scatter(mote_traj['x'].iloc[-1],mote_traj['y'].iloc[-1])
                         plt.annotate(str(mote),(mote_traj['x'].iloc[-1],mote_traj['y'].iloc[-1]))
                     #if no_figures:
@@ -349,6 +356,8 @@ def load_data(inputfile):
                         if 'churn' in allstats[run][mote] and 'location' in allstats[run][mote]:
                             churn = pandas.DataFrame.from_dict(allstats[run][mote]['churn'])
                             #print str(churn['parent'].iloc[-1][-2:])
+                            #print mote
+                            #print churn
                             parent_num = int(str(churn['parent'].iloc[-1][-2:]),16)
                             child_location = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
                             parent_location = pandas.DataFrame.from_dict(allstats[run][parent_num]['location'])
@@ -366,11 +375,13 @@ def load_data(inputfile):
 
                     plt.subplot(313)
                     plt.plot(locations['time_s'],numpy.sqrt(numpy.square(locations['x']) + numpy.square(locations['y'])))
-
+                    plt.xlabel('Time (s)')
                     plt.figure()
-                    print locations
+                    #print locations
                     plt.plot(locations['time_s'],locations['reward'])
                     plt.title("rewards")
+                    plt.ylabel("Reward")
+                    plt.xlabel("Time (s)")
                     #if no_figures:
                         #plt.clf()
                 #print "dataline ", dataline
@@ -389,10 +400,16 @@ def load_data(inputfile):
                     anidata = pandas.DataFrame.from_dict(anidata)
 
                     print anidata.shape
-                    print range(0,anidata.shape[0],100)
-                    for timestep in range(0,anidata.shape[0],100):
+                    print range(0,anidata.shape[0],1000)
+                    i, files, removed = 0, [], []
+                    # kargs = { 'macro_block_size' : None } # include **kargs in writer if running in linux
+                    writer = imageio.get_writer(os.path.join(subfolder, "animation" + str(run)+'.mp4'), fps=20)
+
+                    for timestep in range(0,anidata.shape[0],1000):
                         fig = plt.figure()
-                        print timestep
+
+                        time_s = anidata.iloc[timestep][mote]["time_s"]
+                        print timestep, time_s
                         for mote in anidata.keys():
                             #print mote
                             #print anidata.iloc[timestep]
@@ -404,15 +421,42 @@ def load_data(inputfile):
                         #if no_figures:
                          #   plt.clf()
                         
-                            if 'churn' in allstats[run][mote] and 'locationd' in allstats[run][mote]:
+                            if 'churn' in allstats[run][mote] and 'location' in allstats[run][mote]:
                                 churn = pandas.DataFrame.from_dict(allstats[run][mote]['churn'])
                                 #print str(churn['parent'].iloc[-1][-2:])
-                                parent_num = int(str(churn['parent'].iloc[timestep][-2:]),16)
-                                child_location = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
-                                parent_location = pandas.DataFrame.from_dict(allstats[run][parent_num]['location'])
-                                plt.plot((child_location['x'].iloc[timestep],parent_location['x'].iloc[timestep]),(child_location['y'].iloc[timestep],parent_location['y'].iloc[timestep]), '--')
-                        imgs.append((plt.gca().add_image(),))
-                        plt.clf()
+                                #print "printing churn"
+                                #print churn
+
+                                #find time step
+                                index = None
+                                for idx in range(0,churn.shape[0]-1):
+                                    if time_s >= churn.iloc[idx]["time_s"] and time_s < churn.iloc[idx+1]["time_s"]:
+                                        index = idx 
+                                        break
+                                    elif time_s >= churn.iloc[churn.shape[0]-1]["time_s"]:
+                                        index =  churn.shape[0]-1
+                                        break
+                                if churn.shape[0] == 1:
+                                    index = 0
+                                if index is not None:
+                                    parent_num = int(str(churn['parent'].iloc[index][-2:]),16)
+                                    child_location = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
+                                    parent_location = pandas.DataFrame.from_dict(allstats[run][parent_num]['location'])
+                                    plt.plot((child_location['x'].iloc[timestep],parent_location['x'].iloc[timestep]),(child_location['y'].iloc[timestep],parent_location['y'].iloc[timestep]), '--')
+                        fname = os.path.join(subfolder,'_frame' + str(i) + '.png')
+                        files.append(fname) # TODO: tweak so fps converts to correct timestamp in seconds
+                        plt.xlim([0, 1])
+                        plt.ylim([-0.1, 0.2])
+                        plt.xlabel("X Location (km)")
+                        plt.ylabel("Y Location (km)")
+                        plt.savefig(files[i])
+                        plt.close(fig)
+                        writer.append_data(imageio.imread(files[i])[:, :, :])
+                        os.remove(files[i])
+                        removed.append(fname)
+                        
+                        #print fname
+                        i += 1
 
                 for mote_num in range(1,2):
                     #print "mote number: ",mote_num
@@ -529,9 +573,4 @@ plt.ylabel("RX rate per Neighbor")
 plt.xlabel("EB prob")
 '''
 
-if animation:
-    fig2 = plt.figure()
-    #canvas = matplotlib.backends.backend_tkagg.FigureCanvasTkAgg(self.f,toplevel)
-    im_ani = matplotlib.animation.ArtistAnimation(fig2, imgs, interval=50, repeat_delay=3000,
-                                   blit=True)
 plt.show()

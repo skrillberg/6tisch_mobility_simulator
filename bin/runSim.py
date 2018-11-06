@@ -216,15 +216,15 @@ def main():
     #initilaize tf
     #tensorflow init code########################
 
-
+    '''
     tf.reset_default_graph()
     tf_config = tf.ConfigProto(
-    inter_op_parallelism_threads=1,
-    intra_op_parallelism_threads=1)
+    inter_op_parallelism_threads=8,
+    intra_op_parallelism_threads=8)
     session = tf.Session(config=tf_config)
     print("AVAILABLE GPUS: ", get_available_gpus())
 
-    num_timesteps = 1000
+    num_timesteps = 100000
 
     num_iterations = float(num_timesteps) / 4.0
 
@@ -273,13 +273,13 @@ def main():
                         replay_buffer_size=1000000,
                         batch_size=32,
                         gamma=0.99,
-                        learning_starts=50000,
+                        learning_starts=5000,
                         learning_freq=4,
                         frame_history_len=4,
                         target_update_freq=10000,
                         grad_norm_clipping=10,
                         double_q=True)
-
+    '''
     #=== run simulations
 
     # decide number of CPUs to run on
@@ -294,7 +294,7 @@ def main():
     if numCPUs == 1:
         # run on single CPU
 
-        runSimCombinations(session, alg, {
+        runSimCombinations(None,None, {
             'cpuID':              0,
             'pid':                os.getpid(),
             'numRuns':            simconfig.execution.numRuns,

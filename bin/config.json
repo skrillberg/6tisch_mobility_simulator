@@ -13,7 +13,7 @@
             "tsch_probBcast_ebProb":                       [0.1]
         },
         "regular": {
-            "exec_numSlotframesPerRun":                    1000,
+            "exec_numSlotframesPerRun":                    200000,
             "exec_randomSeed":                             "random",
 
             "secjoin_enabled":                             true,
@@ -59,13 +59,14 @@
             "drift_delay":                                20000,
             "location_update_period":                      10,
             "pister_hack_drop":                            40,
-            "constant_vel":                                19,
+            "constant_vel":                                10,
             "repulsion_constant":                          0.00000001,
             "control_mode" :                                "deep_rl",
-            "goal_loc" :                                   [1000,0.0]
+            "goal_loc" :                                   [1000,0.0],
+            "steps_to_train" :                             50000
         }
     },
-    "logging":                                             "all",
+    "logging":                                             ["loc.update", "rpl.churn"],
     "log_directory_name":                                  "startTime",
     "post": [
         "python compute_kpis.py",

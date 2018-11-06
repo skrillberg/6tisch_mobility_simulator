@@ -142,6 +142,7 @@ def initialize_interdependent_variables(session, vars_list, feed_dict):
     initialization of some variables depends on initialization of the others.
     """
     vars_left = vars_list
+    print vars_left
     while len(vars_left) > 0:
         new_vars_left = []
         for v in vars_left:
@@ -159,6 +160,7 @@ def initialize_interdependent_variables(session, vars_list, feed_dict):
             raise Exception("Cycle in variable dependencies, or extenrnal precondition unsatisfied.")
         else:
             vars_left = new_vars_left
+    #session.run(tf.global_variables_initializer())
 
 def get_wrapper_by_name(env, classname):
     currentenv = env
