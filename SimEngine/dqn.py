@@ -206,7 +206,7 @@ class QLearner(object):
     self.mean_episode_reward      = -float('nan')
     self.best_mean_episode_reward = -float('inf')
     self.last_obs = initial_state
-    self.log_every_n_steps = 10000
+    self.log_every_n_steps = 1000
 
     self.start_time = None
     self.t = 0
@@ -378,11 +378,12 @@ class QLearner(object):
                                                                     self.done_mask_ph : done_mask,
                                                                     self.learning_rate : self.optimizer_spec.lr_schedule.value(self.t)})
       # YOUR CODE HERE
-      #print("q",q[0])
-      #print("error ", error)
-      #print("action",action)
-      #print("evaluated q",evals[0])
-      #print("exploration %f" % self.exploration.value(self.t))
+      if self.t % self.log_every_n_steps == 0 and self.model_initialized:
+        print("q",q[0])
+        print("error ", error)
+        print("action",action)
+        #print("evaluated q",evals[0])
+        print("exploration %f" % self.exploration.value(self.t))
 
       #print("yis" , self.yi[0])
       #print(self.num_param_updates,self.target_update_freq,self.num_param_updates % self.target_update_freq )
@@ -394,7 +395,7 @@ class QLearner(object):
     self.t += 1
     #print self.t
   def log_progress(self):
-    episode_rewards = get_wrapper_by_name(self.env, "Monitor").get_episode_rewards()
+    #episode_rewards = get_wrapper_by_name(self.env, "Monitor").get_episode_rewards()
 
     #if len(episode_rewards) > 0:
       #self.mean_episode_reward = np.mean(episode_rewards[-100:])
@@ -406,7 +407,7 @@ class QLearner(object):
       print("Timestep %d" % (self.t,))
       print("mean reward (100 episodes) %f" % self.mean_episode_reward)
       print("best mean reward %f" % self.best_mean_episode_reward)
-      print("episodes %d" % len(episode_rewards))
+      #print("episodes %d" % len(episode_rewards))
       print("exploration %f" % self.exploration.value(self.t))
       print("learning_rate %f" % self.optimizer_spec.lr_schedule.value(self.t))
       if self.start_time is not None:
@@ -417,8 +418,8 @@ class QLearner(object):
       self.logged_data.append([self.t,self.mean_episode_reward,self.best_mean_episode_reward])
       sys.stdout.flush()
 
-      with open(self.rew_file, 'wb') as f:
-        pickle.dump([episode_rewards,self.logged_data], f, pickle.HIGHEST_PROTOCOL)
+      #with open(self.rew_file, 'wb') as f:
+        #pickle.dump([episode_rewards,self.logged_data], f, pickle.HIGHEST_PROTOCOL)
 
 def learn(*args, **kwargs):
   alg = QLearner(*args, **kwargs)

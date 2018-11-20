@@ -164,6 +164,7 @@ def initialize_interdependent_variables(session, vars_list, feed_dict):
 
 def get_wrapper_by_name(env, classname):
     currentenv = env
+    '''
     while True:
         if classname in currentenv.__class__.__name__:
             return currentenv
@@ -171,6 +172,7 @@ def get_wrapper_by_name(env, classname):
             currentenv = currentenv.env
         else:
             raise ValueError("Couldn't find wrapper named %s"%classname)
+            '''
 
 class ReplayBuffer(object):
     def __init__(self, size, frame_history_len, lander=False):

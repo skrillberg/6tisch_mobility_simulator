@@ -652,7 +652,7 @@ class DiscreteEventEngine(threading.Thread):
         #plt.close()
         #sys.exit()
 
-        r#eturn self.drone_pos
+        #return self.drone_pos
  
     def calcRewards(self,mote,position):
 
@@ -666,7 +666,7 @@ class DiscreteEventEngine(threading.Thread):
 
         #print numpy.array(position)
         #print numpy.array(self.settings.goal_loc)
-        d_goal = numpy.linalg.norm(numpy.array(position) - numpy.array(self.settings.goal_loc)) #goal in meters
+        d_goal = numpy.linalg.norm(numpy.array(position) - numpy.array(self.settings.goal_loc))**2 #goal in meters
         #print d_goal
         #print stats["packets_lost"]
         if math.isnan(etx_avg):
@@ -825,9 +825,9 @@ class SimEngine(DiscreteEventEngine):
 
         num_timesteps = self.settings.exec_numSlotframesPerRun * 13
 
-        num_iterations = float(num_timesteps) / 4
+        num_iterations = float(num_timesteps) / self.settings.location_update_period
 
-        lr_multiplier = 1.0
+        lr_multiplier = 10.0
         lr_schedule = dqn_utils.PiecewiseSchedule([
                                              (0,                   1e-4 * lr_multiplier),
                                              (num_iterations / 10, 1e-4 * lr_multiplier),
@@ -858,7 +858,7 @@ class SimEngine(DiscreteEventEngine):
         exploration_schedule = dqn_utils.PiecewiseSchedule(
             [
                 (0, 1.0),
-                (100000, 0.5),
+                (num_iterations/5, 0.1),
                 (num_iterations / 2, 0.01),
             ], outside_value=0.01
         )
@@ -873,7 +873,7 @@ class SimEngine(DiscreteEventEngine):
                         batch_size=32,
                         gamma=0.99,
                         learning_starts=self.settings.steps_to_train,
-                        learning_freq=40,
+                        learning_freq=4,
                         frame_history_len=4,
                         target_update_freq=10000,
                         grad_norm_clipping=10,

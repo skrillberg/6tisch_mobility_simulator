@@ -8,12 +8,12 @@
     },
     "settings": {
         "combination": {
-            "exec_numMotes":                               [10],
+            "exec_numMotes":                               [2],
             "tsch_slotframeLength":                        [13],
             "tsch_probBcast_ebProb":                       [0.1]
         },
         "regular": {
-            "exec_numSlotframesPerRun":                    200000,
+            "exec_numSlotframesPerRun":                    100000,
             "exec_randomSeed":                             "random",
 
             "secjoin_enabled":                             true,
@@ -51,7 +51,7 @@
 
             "conn_random_square_side":                     0.2,
             "conn_random_init_min_pdr":                    1,
-            "conn_random_init_min_neighbors":              3,
+            "conn_random_init_min_neighbors":              1,
 
             "phy_numChans":                                16,
             "location_update":                             true,
@@ -63,7 +63,7 @@
             "repulsion_constant":                          0.00000001,
             "control_mode" :                                "deep_rl",
             "goal_loc" :                                   [1000,0.0],
-            "steps_to_train" :                             50000
+            "steps_to_train" :                             10000
         }
     },
     "logging":                                             ["loc.update", "rpl.churn"],
