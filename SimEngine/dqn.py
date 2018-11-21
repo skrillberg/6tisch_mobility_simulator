@@ -249,7 +249,7 @@ class QLearner(object):
 
     # YOUR CODE HERE
     #save last_obs in replay buffer
-    #print self.last_obs
+    #print "last ovs",self.last_obs
     self.replay_buffer_index = self.replay_buffer.store_frame(self.last_obs) #returns index of where that obs is stored
 
    
@@ -283,7 +283,7 @@ class QLearner(object):
       #compute target values 
       
       best_action_idx = np.argmax(q_vals)
-      action = best_action_idx
+      action = actions
     else:
       action = np.random.randint(0,self.num_actions)
     #step environment forward
@@ -371,7 +371,7 @@ class QLearner(object):
       #print self.optimizer_spec.lr_schedule.value(self.t)
       #print obs_t_batch.shape
       self.curr_reward = np.mean(rew_batch)
-      error,train,evals,q,action = self.session.run([self.total_error, self.train_fn, self.debug_eval_qs ,self.q_vals,self.act_t_ph],feed_dict={self.obs_t_ph : obs_t_batch,
+      error,train,evals,q,action,yi = self.session.run([self.total_error, self.train_fn, self.debug_eval_qs ,self.q_vals,self.act_t_ph, self.yi],feed_dict={self.obs_t_ph : obs_t_batch,
                                                                     self.act_t_ph : act_batch,
                                                                     self.rew_t_ph : rew_batch,
                                                                     self.obs_tp1_ph : obs_tp1_batch,
@@ -380,12 +380,14 @@ class QLearner(object):
       # YOUR CODE HERE
       if self.t % self.log_every_n_steps == 0 and self.model_initialized:
         print("q",q[0])
+        print("yis" , yi[0])
         print("error ", error)
         print("action",action)
-        #print("evaluated q",evals[0])
+        print("evaluated q",evals[0])
         print("exploration %f" % self.exploration.value(self.t))
+        print "############################################"
 
-      #print("yis" , self.yi[0])
+        
       #print(self.num_param_updates,self.target_update_freq,self.num_param_updates % self.target_update_freq )
       if self.num_param_updates % self.target_update_freq ==0: 
         #print("update target")

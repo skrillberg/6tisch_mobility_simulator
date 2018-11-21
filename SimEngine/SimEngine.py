@@ -33,6 +33,11 @@ import dqn
 import dqn_utils
 from dqn_utils import *
 
+from SimpleXMLRPCServer import SimpleXMLRPCServer
+from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
+import xmlrpclib
+import zerorpc
+
 
 # =========================== defines =========================================
 
@@ -80,6 +85,9 @@ class DiscreteEventEngine(threading.Thread):
             # initialize parent class
             threading.Thread.__init__(self)
             self.name                           = 'DiscreteEventEngine'
+            self.socket = xmlrpclib.ServerProxy('http://127.0.0.1:8001')
+            self.firststep = True
+
 
 
         except:
@@ -99,6 +107,7 @@ class DiscreteEventEngine(threading.Thread):
                 self.play()           # cause one more loop in thread
                 self._actionEndSim()  # causes self.gOn to be set to False
                 self.join()           # wait until thread is dead
+                del self.socket
             else:
                 # thread NOT start'ed yet, or crashed
                 
@@ -300,7 +309,8 @@ class DiscreteEventEngine(threading.Thread):
 
     # === location update
     def logInitialLocation(self):
-        self.alg.last_obs = numpy.array(self.connectivity.coordinates.values())
+        #self.alg.last_obs = numpy.array(self.connectivity.coordinates.values())
+        #self.socket.save_last_obs(self.connectivity.coordinates.values())
         print "logged"
         for motename in self.connectivity.coordinates:
 
@@ -376,12 +386,15 @@ class DiscreteEventEngine(threading.Thread):
         num_drones = len(self.motes)
         rewards = {}
         
-        if self.alg.last_obs is None:
+        if self.firststep:
             #self.alg.last_obs = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
-            self.alg.last_obs = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))[0:2]
+            #self.alg.last_obs = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))[0:2]
+            self.socket.save_last_obs(self.connectivity.coordinates.values()[0])
+            firststep = False
 
         last_observations = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
-
+        last_observations_native = self.connectivity.coordinates.values()
+        #print self.c.hello("RPC")
         for mote in self.motes:
 
             current_coords = self.connectivity.coordinates[mote.id]
@@ -603,17 +616,28 @@ class DiscreteEventEngine(threading.Thread):
                     #print "hiiiii"
                     #store effects from last steps actions
                                 #deepRL observations
-                   
-                    done = 0
+                    final_asn = self.settings.exec_numSlotframesPerRun * self.settings.tsch_slotframeLength
+                    if(self.asn + self.settings.location_update_period > final_asn):
+                        done = 1
+                        print final_asn
+                        print self.asn
+                        print "done reached"
+                    else:
+                        done = 0
                     if self.started:
                         #print self.last_actions
                         #print "reward: ", rewards[i]
 
-                        self.alg.store_effect(last_observations[i*2:i*2+2],rewards[i],self.last_actions[i],done)
-                        self.alg.update_model()
+                        #self.alg.store_effect(last_observations[i*2:i*2+2],rewards[i],self.last_actions[i],done)
+                        self.socket.store_effect(last_observations_native[i],float(rewards[i]),self.last_actions[i],float(done))
+                        #self.alg.update_model()
+                        self.socket.update_model()
 
-
-                    actions = self.alg.step_env(last_observations[i*2:i*2+2])
+                    #print last_observations[i*2:i*2+2].tostring()
+                    #actions = self.alg.step_env(last_observations[i*2:i*2+2])
+                    #print last_observations_native
+                    actions = self.socket.step_env(last_observations_native[i])
+                    print i,last_observations_native[i], actions 
                     #print last_observations[i*2:i*2+2], actions
                     self.last_actions[self.get_mote_by_mote_id(i).id] = actions
                     #print actions 
@@ -675,7 +699,7 @@ class DiscreteEventEngine(threading.Thread):
         #print stats["packets_lost"]*10
         #print stats["rpl_churn"]*10
 
-        return -(etx_avg-1)*10*0 -stats["packets_lost"]*10*0 - stats["rpl_churn"]*10*0 - d_goal/1000
+        return -(etx_avg-1)*0 -stats["packets_lost"]*0 - stats["rpl_churn"]*0 - d_goal/1000000
 
 
 
@@ -816,69 +840,7 @@ class SimEngine(DiscreteEventEngine):
         )
 
         ########start tensorflow#############
-        tf.reset_default_graph()
-        tf_config = tf.ConfigProto(
-        inter_op_parallelism_threads=8,
-        intra_op_parallelism_threads=8)
-        self.session = tf.Session(config=tf_config)
-        #print("AVAILABLE GPUS: ", get_available_gpus())
-
-        num_timesteps = self.settings.exec_numSlotframesPerRun * 13
-
-        num_iterations = float(num_timesteps) / self.settings.location_update_period
-
-        lr_multiplier = 10.0
-        lr_schedule = dqn_utils.PiecewiseSchedule([
-                                             (0,                   1e-4 * lr_multiplier),
-                                             (num_iterations / 10, 1e-4 * lr_multiplier),
-                                             (num_iterations / 2,  5e-5 * lr_multiplier),
-                                        ],
-                                        outside_value=5e-5 * lr_multiplier)
-
-        optimizer = dqn.OptimizerSpec(
-            constructor=tf.train.AdamOptimizer,
-            kwargs=dict(epsilon=1e-4),
-            lr_schedule=lr_schedule
-        )
-        def stopping_criterion(env, t):
-            # notice that here t is the number of steps of the wrapped env,
-            # which is different from the number of steps in the underlying env
-            return get_wrapper_by_name(env, "Monitor").get_total_steps() >= num_timesteps
-
-        def lander_model(obs, num_actions, scope, reuse=False):
-            with tf.variable_scope(scope, reuse=reuse):
-                out = obs
-                with tf.variable_scope("action_value"):
-                    out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.relu)
-                    out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.relu)
-                    out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
-
-                return out
-
-        exploration_schedule = dqn_utils.PiecewiseSchedule(
-            [
-                (0, 1.0),
-                (num_iterations/5, 0.1),
-                (num_iterations / 2, 0.01),
-            ], outside_value=0.01
-        )
-
-        self.alg = dqn.QLearner(env=None,
-                        q_func=lander_model,
-                        optimizer_spec=optimizer,
-                        session=self.session,
-                        exploration=exploration_schedule,
-                        stopping_criterion=stopping_criterion,
-                        replay_buffer_size=1000000,
-                        batch_size=32,
-                        gamma=0.99,
-                        learning_starts=self.settings.steps_to_train,
-                        learning_freq=4,
-                        frame_history_len=4,
-                        target_update_freq=10000,
-                        grad_norm_clipping=10,
-                        double_q=True)
-            
+      
         ########tf code done##########################
 
         #schedule location update
