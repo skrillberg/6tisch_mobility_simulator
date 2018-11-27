@@ -1,0 +1,1 @@
+docker run --runtime=nvidia -it -v /home/tadashi/:/mnt/ tensorflow/tensorflow:latest-gpu bash
