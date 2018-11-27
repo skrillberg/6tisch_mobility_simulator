@@ -70,7 +70,7 @@ session = tf.Session(config=tf_config)
 
 
 
-num_timesteps = simconfig.settings.regular.exec_numSlotframesPerRun* (simconfig.settings.combination.exec_numMotes[0]-1) * simconfig.settings.combination.tsch_slotframeLength[0] *simconfig.execution.numRuns  #rough, todo make real slotframes
+num_timesteps = simconfig.settings.regular.exec_numSlotframesPerRun * simconfig.settings.combination.tsch_slotframeLength[0] *simconfig.execution.numRuns  #rough, todo make real slotframes
 print num_timesteps
 num_iterations = float(num_timesteps) /simconfig.settings.regular.location_update_period
 
@@ -109,8 +109,10 @@ exploration_schedule = dqn_utils.PiecewiseSchedule(
 		(num_iterations , 0.05),
 	], outside_value=0.01
 )
-
-alg = dqn.QLearner(env=None,
+algs = {}
+#spawn multiple q functions
+for i in range(1,simconfig.settings.combination.exec_numMotes[0]):
+	algs[i] = dqn.QLearner(env=None,
 				q_func=lander_model,
 				optimizer_spec=optimizer,
 				session=session,
@@ -124,26 +126,33 @@ alg = dqn.QLearner(env=None,
 				frame_history_len=4,
 				target_update_freq=10000,
 				grad_norm_clipping=10,
-				double_q=True)
+				double_q=True,
+				num_motes = simconfig.settings.combination.exec_numMotes[0]-1,
+				initial_state = {},
+				agent = i)
 
 # Register an instance; all the methods of the instance are
 # published as XML-RPC methods (in this case, just 'div').
 class MyFuncs:
-	def save_last_obs(self,last_obs):
+	def save_last_obs(self,last_obs,agent):
 		#print('last obs from rpc',last_obs)
 		last_obs = numpy.array(last_obs)
-		alg.last_obs = last_obs
-
+		#print "agent:" ,agent
+		algs[agent].last_obs[agent] = last_obs
+		#print algs[agent].last_obs[agent] 
 		#print('saving last obs',last_obs)
 	def indicate_current_steps(self):
 		pass
-	def store_effect(self,last_observations,rewards,last_actions,done):
-		alg.store_effect(numpy.array(last_observations),rewards,numpy.array(last_actions),done)
-	def update_model(self):
-		alg.update_model()
-	def step_env(self,last_observations):
+	def store_effect(self,last_observations,rewards,last_actions,done,agent):
+		#print "store effect"
+		algs[agent].store_effect(numpy.array(last_observations),rewards,numpy.array(last_actions),done,agent)
+	def update_model(self,agent):
+		algs[agent].update_model(agent)
+	def step_env(self,last_observations,agent):
 		#print('rpc',last_observations)
-		actions = alg.step_env(numpy.array(last_observations))
+		#print "step_env"
+		#print algs
+		actions = algs[agent].step_env(numpy.array(last_observations),agent)
 		return int(actions)
 	def exit(self):
 		pass

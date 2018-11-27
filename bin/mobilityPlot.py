@@ -248,6 +248,8 @@ def load_data(inputfile):
 
     run=0
     mote_num=1
+    plot_div = 5
+    count = 0
     for run in allstats:
         for mote_num in allstats[run]:
             if mote_num == plot_mote_num or plot_all:
@@ -477,7 +479,6 @@ def load_data(inputfile):
 
 
             #plt.show()
-            
 
 data = OrderedDict()
 

@@ -386,11 +386,7 @@ class DiscreteEventEngine(threading.Thread):
         num_drones = len(self.motes)
         rewards = {}
         
-        if self.firststep:
-            #self.alg.last_obs = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
-            #self.alg.last_obs = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))[0:2]
-            self.socket.save_last_obs(self.connectivity.coordinates.values()[0])
-            firststep = False
+
 
         last_observations = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
         last_observations_native = self.connectivity.coordinates.values()
@@ -402,6 +398,9 @@ class DiscreteEventEngine(threading.Thread):
             self.drone_pos[mote.id][1] = current_coords[1]*1000
 
         for i in range(num_drones):
+
+
+
             rewards[self.get_mote_by_mote_id(i).id] = self.calcRewards(self.get_mote_by_mote_id(i),self.drone_pos[i]) #calc current rewards from last action
             #print rewards
             if (i != 0):
@@ -616,6 +615,12 @@ class DiscreteEventEngine(threading.Thread):
                     #print "hiiiii"
                     #store effects from last steps actions
                                 #deepRL observations
+                    if self.firststep and i!=0:
+                        #self.alg.last_obs = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
+                        #self.alg.last_obs = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))[0:2]
+                        self.socket.save_last_obs(self.connectivity.coordinates.values()[i],i)
+                        
+
                     final_asn = self.settings.exec_numSlotframesPerRun * self.settings.tsch_slotframeLength
                     if(self.asn + self.settings.location_update_period > final_asn):
                         done = 1
@@ -629,15 +634,15 @@ class DiscreteEventEngine(threading.Thread):
                         #print "reward: ", rewards[i]
 
                         #self.alg.store_effect(last_observations[i*2:i*2+2],rewards[i],self.last_actions[i],done)
-                        self.socket.store_effect(last_observations_native[i],float(rewards[i]),self.last_actions[i],float(done))
+                        self.socket.store_effect(last_observations_native[i],float(rewards[i]),self.last_actions[i],float(done),i)
                         #self.alg.update_model()
-                        self.socket.update_model()
+                        self.socket.update_model(i)
 
                     #print last_observations[i*2:i*2+2].tostring()
                     #actions = self.alg.step_env(last_observations[i*2:i*2+2])
                     #print last_observations_native
-                    actions = self.socket.step_env(last_observations_native[i])
-                    print i,last_observations_native[i], actions 
+                    actions = self.socket.step_env(last_observations_native[i],i)
+                    #print i,last_observations_native[i], actions 
                     #print last_observations[i*2:i*2+2], actions
                     self.last_actions[self.get_mote_by_mote_id(i).id] = actions
                     #print actions 
@@ -659,6 +664,7 @@ class DiscreteEventEngine(threading.Thread):
             elif (i == 0):
                 self.drone_vels[i][0] = 0
                 self.drone_vels[i][1] = 0
+        self.firststep = False
         for mote in self.motes:
             current_coords = self.connectivity.coordinates[mote.id]
             # update position, divide by 1000 to convert to km

@@ -34,7 +34,9 @@ class QLearner(object):
     double_q=True,
     lander=False,
     initial_state=None,
-    observation_dim = None):
+    observation_dim = None,
+    num_motes = None,
+    agent = None):
     """Run Deep Q-learning algorithm.
 
     You can specify your own convnet using q_func.
@@ -100,7 +102,7 @@ class QLearner(object):
     self.session = session
     self.exploration = exploration
     self.rew_file = str(uuid.uuid4()) + '.pkl' if rew_file is None else rew_file
-
+    self.agent = agent
     ###############
     # BUILD MODEL #
     ###############
@@ -155,20 +157,20 @@ class QLearner(object):
 
     # YOUR CODE HERE
 
-    self.q_vals = q_func(obs_t_float,self.num_actions,"q_func") #predicts actions from observations
-    q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='q_func') # collect parameters
+    self.q_vals = q_func(obs_t_float,self.num_actions,str(self.agent)+"/q_func") #predicts actions from observations
+    q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=str(self.agent)+"/q_func") # collect parameters
     print q_func_vars
 
     #create model for target network
-    self.targets = q_func(obs_tp1_float,self.num_actions,"target_q_func")
-    target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_q_func') # collect parameters
+    self.targets = q_func(obs_tp1_float,self.num_actions,str(self.agent)+"/target_q_func")
+    target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=str(self.agent)+'/target_q_func') # collect parameters
 
 
     self.max_targets = tf.reduce_max(self.targets,axis=1) # for debugging 
     if not double_q:
       self.yi = self.rew_t_ph + gamma*tf.reduce_max(self.targets,axis=1)*(1-self.done_mask_ph)
     else:
-      self.dbl_targets = q_func(obs_tp1_float,self.num_actions,"q_func",reuse=True)
+      self.dbl_targets = q_func(obs_tp1_float,self.num_actions,str(self.agent)+"/q_func",reuse=True)
       self.dbl_one_hot = tf.one_hot(tf.argmax(self.dbl_targets,axis=1),self.num_actions)
 
       self.yi = self.rew_t_ph + gamma*tf.reduce_sum(self.targets*self.dbl_one_hot,axis=1)*(1-self.done_mask_ph)
@@ -214,7 +216,7 @@ class QLearner(object):
   def stopping_criterion_met(self):
     return self.stopping_criterion is not None and self.stopping_criterion(self.env, self.t)
 
-  def step_env(self,observations):
+  def step_env(self,observations,agent):
     ### 2. Step the env and store the transition
     # At this point, "self.last_obs" contains the latest observation that was
     # recorded from the simulator. Here, your code needs to store this
@@ -250,7 +252,9 @@ class QLearner(object):
     # YOUR CODE HERE
     #save last_obs in replay buffer
     #print "last ovs",self.last_obs
-    self.replay_buffer_index = self.replay_buffer.store_frame(self.last_obs) #returns index of where that obs is stored
+    #print self.last_obs
+    #print self.last_obs
+    self.replay_buffer_index = self.replay_buffer.store_frame(self.last_obs[agent]) #returns index of where that obs is stored
 
    
     obs_frames = self.replay_buffer.encode_recent_observation() #obtain recent frames 
@@ -289,7 +293,7 @@ class QLearner(object):
     #step environment forward
     return action 
 
-  def store_effect(self,obs,reward,action,done):
+  def store_effect(self,obs,reward,action,done,agent):
     
 
     #q_targets = self.session.run(self.targets,feed_dict={self.obs_tp1_ph : obs,
@@ -306,9 +310,9 @@ class QLearner(object):
     #  obs = self.env.reset()
 
     #save obs
-    self.last_obs = obs
+    self.last_obs[agent] = obs
 
-  def update_model(self):
+  def update_model(self,agent):
     ### 3. Perform experience replay and train the network.
     # note that this is only done if the replay buffer contains enough samples
     # for us to learn something useful -- until then, the model will not be
@@ -357,7 +361,7 @@ class QLearner(object):
       if not self.model_initialized:
         print(tf.local_variables())
         print(tf.global_variables())
-        tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='q_func')
+        tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=str(agent)+'/q_func')
         initialize_interdependent_variables(self.session, tf.global_variables(), {
               self.obs_t_ph: obs_t_batch,
               self.obs_tp1_ph: obs_tp1_batch,
