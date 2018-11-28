@@ -284,8 +284,11 @@ class ReplayBuffer(object):
         # this checks if we are using low-dimensional observations, such as RAM
         # state, in which case we just directly return the latest RAM.
         if len(self.obs.shape) == 2:
+            #print "index", end_idx - 1
+            #print self.obs
             return self.obs[end_idx-1]
         # if there weren't enough frames ever in the buffer for context
+        #print "num in buffer", self.num_in_buffer
         if start_idx < 0 and self.num_in_buffer != self.size:
             start_idx = 0
         for idx in range(start_idx, end_idx - 1):
@@ -295,6 +298,7 @@ class ReplayBuffer(object):
         # if zero padding is needed for missing context
         # or we are on the boundry of the buffer
         if start_idx < 0 or missing_context > 0:
+            print "####################zero padding########################################"
             frames = [np.zeros_like(self.obs[0]) for _ in range(missing_context)]
             for idx in range(start_idx, end_idx):
                 frames.append(self.obs[idx % self.size])
@@ -320,16 +324,19 @@ class ReplayBuffer(object):
             Index at which the frame is stored. To be used for `store_effect` later.
         """
         if self.obs is None:
-            self.obs      = np.empty([self.size] + list(frame.shape), dtype=np.float32 if self.lander else np.uint8)
+            print "reseting obs"
+            self.obs      = np.empty([self.size] + list(frame.shape))
             self.action   = np.empty([self.size],                     dtype=np.int32)
             self.reward   = np.empty([self.size],                     dtype=np.float32)
             self.done     = np.empty([self.size],                     dtype=np.bool)
-        self.obs[self.next_idx] = frame
-
+        self.obs[self.next_idx,0] = frame[0]
+        self.obs[self.next_idx,1] = frame[1]
+        #print "obs after store frame", self.obs
         ret = self.next_idx
         self.next_idx = (self.next_idx + 1) % self.size
         self.num_in_buffer = min(self.size, self.num_in_buffer + 1)
-
+        #print "frame", frame
+        #print "stored frame", self.obs[self.next_idx]
         return ret
 
     def store_effect(self, idx, action, reward, done):

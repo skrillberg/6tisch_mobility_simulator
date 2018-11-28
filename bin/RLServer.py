@@ -118,8 +118,8 @@ for i in range(1,simconfig.settings.combination.exec_numMotes[0]):
 				session=session,
 				exploration=exploration_schedule,
 				stopping_criterion=stopping_criterion,
-				replay_buffer_size=1000000,
-				batch_size=32,
+				replay_buffer_size=100000,
+				batch_size=100,
 				gamma=0.99,
 				learning_starts=simconfig.settings.regular.steps_to_train,
 				learning_freq=4,
@@ -145,13 +145,15 @@ class MyFuncs:
 		pass
 	def store_effect(self,last_observations,rewards,last_actions,done,agent):
 		#print "store effect"
-		algs[agent].store_effect(numpy.array(last_observations),rewards,numpy.array(last_actions),done,agent)
+		#print "rewards, actions ", rewards, last_actions,
+		algs[agent].store_effect(last_observations,rewards,numpy.array(last_actions),done,agent)
 	def update_model(self,agent):
 		algs[agent].update_model(agent)
 	def step_env(self,last_observations,agent):
 		#print('rpc',last_observations)
 		#print "step_env"
 		#print algs
+		#print "stored last obs",numpy.array(last_observations)
 		actions = algs[agent].step_env(numpy.array(last_observations),agent)
 		return int(actions)
 	def exit(self):

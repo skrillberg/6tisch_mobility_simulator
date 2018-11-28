@@ -31,9 +31,7 @@ import netaddr
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
-import dqn
-import dqn_utils
-from dqn_utils import *
+
 
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
@@ -387,12 +385,8 @@ class DiscreteEventEngine(threading.Thread):
         nextState = []
         num_drones = len(self.motes)
         rewards = {}
-        
 
-
-        last_observations = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
-        last_observations_native = self.connectivity.coordinates.values()
-        #print self.c.hello("RPC")
+                #print self.c.hello("RPC")
         for mote in self.motes:
 
             current_coords = self.connectivity.coordinates[mote.id]
@@ -400,10 +394,28 @@ class DiscreteEventEngine(threading.Thread):
             self.drone_pos[mote.id][1] = current_coords[1]*1000
 
         for i in range(num_drones):
-
-
-
             rewards[self.get_mote_by_mote_id(i).id] = self.calcRewards(self.get_mote_by_mote_id(i),self.drone_pos[i]) #calc current rewards from last action
+
+        if self.started:
+            #store effect and update model from previous actions
+            for i in range (1,num_drones):
+                #print self.last_observations_native
+                #print rewards
+                self.socket.store_effect(self.last_observations_native[i],float(rewards[i]),self.curr_actions[i],float(self.done),i)
+                self.socket.update_model(i)
+
+        self.last_actions = self.curr_actions
+        self.last_observations = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
+        self.last_observations_native = self.connectivity.coordinates.values() #these become current observations now
+
+
+
+
+        for i in range(num_drones):
+
+
+
+            
             #print rewards
             if (i != 0):
 
@@ -625,28 +637,32 @@ class DiscreteEventEngine(threading.Thread):
 
                     final_asn = self.settings.exec_numSlotframesPerRun * self.settings.tsch_slotframeLength
                     if(self.asn + self.settings.location_update_period > final_asn):
-                        done = 1
+                        self.done = 1
                         print final_asn
                         print self.asn
                         print "done reached"
+                        
                     else:
-                        done = 0
-                    if self.started:
+                        self.done = 0
+                    #if self.started:
                         #print self.last_actions
                         #print "reward: ", rewards[i]
 
                         #self.alg.store_effect(last_observations[i*2:i*2+2],rewards[i],self.last_actions[i],done)
-                        self.socket.store_effect(last_observations_native[i],float(rewards[i]),self.last_actions[i],float(done),i)
+
                         #self.alg.update_model()
-                        self.socket.update_model(i)
+                        
 
                     #print last_observations[i*2:i*2+2].tostring()
                     #actions = self.alg.step_env(last_observations[i*2:i*2+2])
                     #print last_observations_native
-                    actions = self.socket.step_env(last_observations_native[i],i)
+
+                    actions = self.socket.step_env(self.last_observations_native[i],i)
+                    if self.done ==1:
+                        self.socket.store_effect(self.last_observations_native[i],float(rewards[i]),self.curr_actions[i],float(self.done),i)
                     #print i,last_observations_native[i], actions 
                     #print last_observations[i*2:i*2+2], actions
-                    self.last_actions[self.get_mote_by_mote_id(i).id] = actions
+                    self.curr_actions[self.get_mote_by_mote_id(i).id] = actions
                     #print actions 
                     action_list = [(0,0),
                                     (0,4),
@@ -666,6 +682,8 @@ class DiscreteEventEngine(threading.Thread):
             elif (i == 0):
                 self.drone_vels[i][0] = 0
                 self.drone_vels[i][1] = 0
+
+
         self.firststep = False
         for mote in self.motes:
             current_coords = self.connectivity.coordinates[mote.id]
@@ -829,7 +847,9 @@ class SimEngine(DiscreteEventEngine):
         
         self.goal_loc = self.settings.goal_loc
         self.last_actions ={}
+        self.curr_actions={}
         self.started = False
+        print "engine restarted"
 
 
 

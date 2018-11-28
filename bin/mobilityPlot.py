@@ -9,7 +9,7 @@ import imageio
 
 # third party
 import matplotlib
-matplotlib.use('Agg')
+#matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas
 import numpy
@@ -29,7 +29,7 @@ no_figures = False
 plot_all = False
 plot_mote_num = 1
 animation = False
-#matplotlib.use('TkAgg')
+matplotlib.use('TkAgg')
 # =========================== defines =========================================
 imgs =[]
 DAGROOT_ID = 0  # we assume first mote is DAGRoot

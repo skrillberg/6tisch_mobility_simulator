@@ -254,10 +254,11 @@ class QLearner(object):
     #print "last ovs",self.last_obs
     #print self.last_obs
     #print self.last_obs
-    self.replay_buffer_index = self.replay_buffer.store_frame(self.last_obs[agent]) #returns index of where that obs is stored
-
-   
+    self.replay_buffer_index = self.replay_buffer.store_frame(np.array(self.last_obs[agent],dtype=np.float32) )#returns index of where that obs is stored
+    #print "last obs ",self.last_obs[agent]
+    #print "buffer index",self.replay_buffer_index
     obs_frames = self.replay_buffer.encode_recent_observation() #obtain recent frames 
+    #print "obs frame", obs_frames
     #print(self.replay_buffer.num_in_buffer,self.replay_buffer.frame_history_len,self.replay_buffer.next_idx)
     #print("before",obs_frames)
     if len(obs_frames.shape) ==1 or len(obs_frames.shape)==3:
@@ -299,7 +300,7 @@ class QLearner(object):
     #q_targets = self.session.run(self.targets,feed_dict={self.obs_tp1_ph : obs,
     #                                                          self.act_t_ph : actions})
     #store effect of last ob in replay buffer 
-
+    #print "replay index in store effect",self.replay_buffer_index
     self.replay_buffer.store_effect(idx=self.replay_buffer_index,
                                     action=action,
                                     reward=reward,
@@ -357,6 +358,7 @@ class QLearner(object):
       #sample batch from replay buffer
       obs_t_batch, act_batch, rew_batch, obs_tp1_batch, done_mask = self.replay_buffer.sample(self.batch_size)
       #print(obs_t_batch.shape) 
+      print act_batch, rew_batch, obs_tp1_batch, obs_t_batch
       #initialize
       if not self.model_initialized:
         print(tf.local_variables())

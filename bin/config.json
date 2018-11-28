@@ -2,18 +2,18 @@
     "version":                                             0,
     "execution": {
         "numCPUs":                                         1,
-        "numRuns":                                         20,
+        "numRuns":                                         10,
         "verbose":                                     true
 
     },
     "settings": {
         "combination": {
-            "exec_numMotes":                               [3],
+            "exec_numMotes":                               [2],
             "tsch_slotframeLength":                        [13],
             "tsch_probBcast_ebProb":                       [0.1]
         },
         "regular": {
-            "exec_numSlotframesPerRun":                    10000,
+            "exec_numSlotframesPerRun":                    2000,
             "exec_randomSeed":                             "random",
 
             "secjoin_enabled":                             true,
@@ -55,7 +55,7 @@
 
             "phy_numChans":                                16,
             "location_update":                             true,
-            "location_drift":                              0.0001,
+            "location_drift":                              0.0000,
             "drift_delay":                                20000,
             "location_update_period":                      10,
             "pister_hack_drop":                            40,
