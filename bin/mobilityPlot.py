@@ -248,11 +248,11 @@ def load_data(inputfile):
 
     run=0
     mote_num=1
-    plot_div = 5
+    plot_div = 1
     count = 0
     for run in allstats:
         for mote_num in allstats[run]:
-            if mote_num == plot_mote_num or plot_all:
+            if (mote_num == plot_mote_num or plot_all) and (count % plot_div == 0):
                 #print allstats
                 print mote_num
                 dataline =   {"slotframe_length" : file_settings["tsch_slotframeLength"],
@@ -477,7 +477,7 @@ def load_data(inputfile):
 
                 save_data_ebs.append(dataline)
 
-
+        count = count + 1
             #plt.show()
 
 data = OrderedDict()

@@ -358,7 +358,7 @@ class QLearner(object):
       #sample batch from replay buffer
       obs_t_batch, act_batch, rew_batch, obs_tp1_batch, done_mask = self.replay_buffer.sample(self.batch_size)
       #print(obs_t_batch.shape) 
-      print act_batch, rew_batch, obs_tp1_batch, obs_t_batch
+      #print act_batch, rew_batch, obs_tp1_batch, obs_t_batch
       #initialize
       if not self.model_initialized:
         print(tf.local_variables())

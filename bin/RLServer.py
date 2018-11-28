@@ -74,7 +74,7 @@ num_timesteps = simconfig.settings.regular.exec_numSlotframesPerRun * simconfig.
 print num_timesteps
 num_iterations = float(num_timesteps) /simconfig.settings.regular.location_update_period
 
-lr_multiplier = 1
+lr_multiplier = 10
 lr_schedule = dqn_utils.PiecewiseSchedule([
 									 (0,                   1e-4 * lr_multiplier),
 									 (num_iterations / 10, 1e-4 * lr_multiplier),
@@ -119,7 +119,7 @@ for i in range(1,simconfig.settings.combination.exec_numMotes[0]):
 				exploration=exploration_schedule,
 				stopping_criterion=stopping_criterion,
 				replay_buffer_size=100000,
-				batch_size=100,
+				batch_size=32,
 				gamma=0.99,
 				learning_starts=simconfig.settings.regular.steps_to_train,
 				learning_freq=4,

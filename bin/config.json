@@ -2,7 +2,7 @@
     "version":                                             0,
     "execution": {
         "numCPUs":                                         1,
-        "numRuns":                                         10,
+        "numRuns":                                         2,
         "verbose":                                     true
 
     },
@@ -13,7 +13,7 @@
             "tsch_probBcast_ebProb":                       [0.1]
         },
         "regular": {
-            "exec_numSlotframesPerRun":                    2000,
+            "exec_numSlotframesPerRun":                    5000,
             "exec_randomSeed":                             "random",
 
             "secjoin_enabled":                             true,
