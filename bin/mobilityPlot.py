@@ -9,7 +9,7 @@ import imageio
 
 # third party
 import matplotlib
-#matplotlib.use('Agg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas
 import numpy
@@ -28,8 +28,10 @@ dirname = "SimData/20181016-120404-311"
 no_figures = False
 plot_all = False
 plot_mote_num = 1
-animation = False
-matplotlib.use('TkAgg')
+animation = True
+#matplotlib.use('TkAgg')
+import pylab
+pylab.ion()
 # =========================== defines =========================================
 imgs =[]
 DAGROOT_ID = 0  # we assume first mote is DAGRoot
@@ -248,7 +250,7 @@ def load_data(inputfile):
 
     run=0
     mote_num=1
-    plot_div = 1
+    plot_div = 5   
     count = 0
     for run in allstats:
         for mote_num in allstats[run]:
@@ -364,7 +366,7 @@ def load_data(inputfile):
                             child_location = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
                             parent_location = pandas.DataFrame.from_dict(allstats[run][parent_num]['location'])
                             plt.plot((child_location['x'].iloc[-1],parent_location['x'].iloc[-1]),(child_location['y'].iloc[-1],parent_location['y'].iloc[-1]), '--')
-
+                    plt.savefig(str(run))
                     plt.figure()
                     plt.subplot(311)
                     plt.title('Mote 1 Locations')
@@ -401,17 +403,17 @@ def load_data(inputfile):
                         anidata[mote] = allstats[run][mote]['location']
                     anidata = pandas.DataFrame.from_dict(anidata)
 
-                    print anidata.shape
-                    print range(0,anidata.shape[0],1000)
+                    #print anidata.shape
+                    #print range(0,anidata.shape[0],1000)
                     i, files, removed = 0, [], []
                     # kargs = { 'macro_block_size' : None } # include **kargs in writer if running in linux
                     writer = imageio.get_writer(os.path.join(subfolder, "animation" + str(run)+'.mp4'), fps=20)
 
-                    for timestep in range(0,anidata.shape[0],1000):
+                    for timestep in range(0,anidata.shape[0],100):
                         fig = plt.figure()
 
                         time_s = anidata.iloc[timestep][mote]["time_s"]
-                        print timestep, time_s
+                       # print timestep, time_s
                         for mote in anidata.keys():
                             #print mote
                             #print anidata.iloc[timestep]
@@ -493,11 +495,11 @@ subfolders = list(
 
 '''
 subfolders = list(
-    map(lambda x: os.path.join("SimData", x),
-        os.listdir("SimData")
+    map(lambda x: os.path.join("simData", x),
+        os.listdir("simData")
     )
 )
-subfolders = glob.glob(os.path.join('SimData', '*'))
+subfolders = glob.glob(os.path.join('simData', '*'))
 subfolder = max(subfolders, key=os.path.getmtime)
 
 print(subfolder)
@@ -575,3 +577,4 @@ plt.xlabel("EB prob")
 '''
 
 plt.show()
+pylab.show()

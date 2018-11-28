@@ -74,13 +74,14 @@ num_timesteps = simconfig.settings.regular.exec_numSlotframesPerRun * simconfig.
 print num_timesteps
 num_iterations = float(num_timesteps) /simconfig.settings.regular.location_update_period
 
-lr_multiplier = 10
+#lr_multiplier = 10.0
+lr_multiplier = simconfig.settings.regular.lr_multiplier
 lr_schedule = dqn_utils.PiecewiseSchedule([
 									 (0,                   1e-4 * lr_multiplier),
-									 (num_iterations / 10, 1e-4 * lr_multiplier),
+									 (num_iterations / 5, 1e-4 * lr_multiplier),
 									 (num_iterations / 2,  1e-5 * lr_multiplier),
 								],
-								outside_value=10e-5 * lr_multiplier)
+								outside_value=1e-5 * lr_multiplier)
 
 optimizer = dqn.OptimizerSpec(
 	constructor=tf.train.AdamOptimizer,
@@ -105,7 +106,7 @@ def lander_model(obs, num_actions, scope, reuse=False):
 exploration_schedule = dqn_utils.PiecewiseSchedule(
 	[
 		(0, 1.0),
-		(num_iterations/4, 0.1),
+		(num_iterations/10, 0.4),
 		(num_iterations , 0.05),
 	], outside_value=0.01
 )
@@ -125,11 +126,12 @@ for i in range(1,simconfig.settings.combination.exec_numMotes[0]):
 				learning_freq=4,
 				frame_history_len=4,
 				target_update_freq=10000,
-				grad_norm_clipping=10,
+				grad_norm_clipping=100,
 				double_q=True,
 				num_motes = simconfig.settings.combination.exec_numMotes[0]-1,
 				initial_state = {},
-				agent = i)
+				agent = i,
+				observation_dim = 2)
 
 # Register an instance; all the methods of the instance are
 # published as XML-RPC methods (in this case, just 'div').

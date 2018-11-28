@@ -716,7 +716,7 @@ class DiscreteEventEngine(threading.Thread):
 
         #print numpy.array(position)
         #print numpy.array(self.settings.goal_loc)
-        d_goal = numpy.linalg.norm(numpy.array(position) - numpy.array(self.settings.goal_loc))**2 #goal in meters
+        d_goal = numpy.linalg.norm(numpy.array(position) - numpy.array(self.settings.goal_loc)) #goal in meters
         #print d_goal
         #print stats["packets_lost"]
         if math.isnan(etx_avg):
@@ -725,7 +725,7 @@ class DiscreteEventEngine(threading.Thread):
         #print stats["packets_lost"]*10
         #print stats["rpl_churn"]*10
 
-        return -(etx_avg-1)*0 -stats["packets_lost"]*0 - stats["rpl_churn"]*0 - d_goal/1000000
+        return -(etx_avg-1)*1 -stats["packets_lost"]*0 - stats["rpl_churn"]*0 - d_goal*self.settings.reward_scaler
 
 
 
@@ -751,8 +751,8 @@ class DiscreteEventEngine(threading.Thread):
         slotframe_iteration = int(self.asn / self.settings.tsch_slotframeLength)
 
         # print
-        if self.verbose:
-            print('   slotframe_iteration: {0}/{1}'.format(slotframe_iteration, self.settings.exec_numSlotframesPerRun-1))
+        #if self.verbose:
+         #   print('   slotframe_iteration: {0}/{1}'.format(slotframe_iteration, self.settings.exec_numSlotframesPerRun-1))
 
         # schedule next statistics collection
         self.scheduleAtAsn(
