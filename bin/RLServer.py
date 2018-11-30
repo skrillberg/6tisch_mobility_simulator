@@ -126,12 +126,12 @@ for i in range(1,simconfig.settings.combination.exec_numMotes[0]):
 				learning_freq=4,
 				frame_history_len=4,
 				target_update_freq=10000,
-				grad_norm_clipping=100,
+				grad_norm_clipping=simconfig.settings.regular.grad_clipping,
 				double_q=True,
 				num_motes = simconfig.settings.combination.exec_numMotes[0]-1,
 				initial_state = {},
 				agent = i,
-				observation_dim = 2)
+				observation_dim = 2+ simconfig.settings.combination.exec_numMotes[0]-1)
 
 # Register an instance; all the methods of the instance are
 # published as XML-RPC methods (in this case, just 'div').

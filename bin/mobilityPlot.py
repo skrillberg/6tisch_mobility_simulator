@@ -28,7 +28,7 @@ dirname = "SimData/20181016-120404-311"
 no_figures = False
 plot_all = False
 plot_mote_num = 1
-animation = True
+animation = False
 #matplotlib.use('TkAgg')
 import pylab
 pylab.ion()
@@ -250,10 +250,20 @@ def load_data(inputfile):
 
     run=0
     mote_num=1
-    plot_div = 40   
+    plot_div = 1   
     count = 0
+    run_reward = {}
+    etx_dict = {}
     for run in allstats:
         for mote_num in allstats[run]:
+
+            run_reward[run] = {}
+
+            if 'location' in allstats[run][mote_num]:
+                locations = pandas.DataFrame.from_dict(allstats[run][mote_num]['location'])
+                run_reward[run][mote_num] = numpy.sum(locations['reward'])
+                print "Average Reward: ", run_reward[run][mote_num]
+
             if (mote_num == plot_mote_num or plot_all) and (count % plot_div == 0):
                 #print allstats
                 print mote_num
@@ -285,6 +295,7 @@ def load_data(inputfile):
                                                     (eb_txs['time_s'].iloc[-1] - eb_txs['time_s'].iloc[0]+0.000001)
                     )
                     dataline['eb_txs']=len(eb_txs)
+
                     if no_figures:
                         plt.clf()                
 
@@ -366,7 +377,7 @@ def load_data(inputfile):
                             child_location = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
                             parent_location = pandas.DataFrame.from_dict(allstats[run][parent_num]['location'])
                             plt.plot((child_location['x'].iloc[-1],parent_location['x'].iloc[-1]),(child_location['y'].iloc[-1],parent_location['y'].iloc[-1]), '--')
-                    plt.savefig(str(run))
+                    plt.savefig(subfolder+"/"+"traj"+str(run))
                     plt.figure()
                     plt.subplot(311)
                     plt.title('Mote 1 Locations')
@@ -386,6 +397,8 @@ def load_data(inputfile):
                     plt.title("rewards")
                     plt.ylabel("Reward")
                     plt.xlabel("Time (s)")
+                    plt.savefig(subfolder+"/"+"rewards"+str(run))
+
                     #if no_figures:
                         #plt.clf()
                 #print "dataline ", dataline
@@ -393,7 +406,7 @@ def load_data(inputfile):
                 
                 if 'location' in allstats[run][mote_num] and animation:
                     
-                    print "Plotting Animation Frames"
+                    #print "Plotting Animation Frames"
                     global imgs
    
                     
@@ -453,7 +466,8 @@ def load_data(inputfile):
                         plt.ylim([-0.1, 0.2])
                         plt.xlabel("X Location (km)")
                         plt.ylabel("Y Location (km)")
-                        plt.savefig(files[i])
+                        #print os.path.join(subfolder,files[i])
+                        plt.savefig(os.path.join(files[i]))
                         plt.close(fig)
                         writer.append_data(imageio.imread(files[i])[:, :, :])
                         os.remove(files[i])
@@ -470,6 +484,7 @@ def load_data(inputfile):
                         plt.figure()
                         plt.plot(etxs['time_s'],etxs['etx'])
                         plt.title("ETX")
+                        plt.savefig(subfolder +"/" + "etx" +str(run) + "_" + str(mote_num))
                         if no_figures:
                             plt.clf()
                     if 'neighbor_table' in allstats[run][mote_num]:
@@ -482,7 +497,12 @@ def load_data(inputfile):
         count = count + 1
             #plt.show()
 
-data = OrderedDict()
+    reward_table = pandas.DataFrame.from_dict(run_reward)
+    print reward_table
+    plt.figure()
+    plt.plot(reward_table.iloc[0])
+    plt.savefig(subfolder +"/" + "rewards")
+    data = OrderedDict()
 
 # chose lastest results
 '''
