@@ -2,7 +2,7 @@
     "version":                                             0,
     "execution": {
         "numCPUs":                                         1,
-        "numRuns":                                         25,
+        "numRuns":                                         500,
         "verbose":                                     true
 
     },
@@ -13,7 +13,7 @@
             "tsch_probBcast_ebProb":                       [0.1]
         },
         "regular": {
-            "exec_numSlotframesPerRun":                    2000,
+            "exec_numSlotframesPerRun":                    1500,
             "exec_randomSeed":                             "random",
 
             "secjoin_enabled":                             true,
@@ -62,9 +62,9 @@
             "constant_vel":                                10,
             "repulsion_constant":                          0.00000001,
             "control_mode" :                                "deep_rl",
-            "goal_loc" :                                   [1000.0,0.0],
+            "goal_loc" :                                   [200.0,0.0],
             "steps_to_train" :                             5000,
-            "lr_multiplier" :                               100,
+            "lr_multiplier" :                               10,
             "reward_scaler" :                               0.001
         }
     },

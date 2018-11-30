@@ -78,8 +78,8 @@ num_iterations = float(num_timesteps) /simconfig.settings.regular.location_updat
 lr_multiplier = simconfig.settings.regular.lr_multiplier
 lr_schedule = dqn_utils.PiecewiseSchedule([
 									 (0,                   1e-4 * lr_multiplier),
-									 (num_iterations / 5, 1e-4 * lr_multiplier),
-									 (num_iterations / 2,  1e-5 * lr_multiplier),
+									 (num_iterations / 4, 1e-4 * lr_multiplier),
+									 (num_iterations ,  1e-5 * lr_multiplier),
 								],
 								outside_value=1e-5 * lr_multiplier)
 
@@ -106,7 +106,7 @@ def lander_model(obs, num_actions, scope, reuse=False):
 exploration_schedule = dqn_utils.PiecewiseSchedule(
 	[
 		(0, 1.0),
-		(num_iterations/10, 0.4),
+		(num_iterations/5, 0.4),
 		(num_iterations , 0.05),
 	], outside_value=0.01
 )

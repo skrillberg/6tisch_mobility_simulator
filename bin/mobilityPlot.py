@@ -250,7 +250,7 @@ def load_data(inputfile):
 
     run=0
     mote_num=1
-    plot_div = 5   
+    plot_div = 40   
     count = 0
     for run in allstats:
         for mote_num in allstats[run]:
