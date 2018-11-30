@@ -107,7 +107,7 @@ class QLearner(object):
     # BUILD MODEL #
     ###############
 
-    input_shape = (2, )
+    input_shape = (observation_dim, )
     self.num_actions = 9
     self.curr_reward = 0
     # set up placeholders

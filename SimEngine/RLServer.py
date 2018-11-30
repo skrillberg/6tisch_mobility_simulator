@@ -69,7 +69,7 @@ num_timesteps = 1000* 13 *simconfig.execution.numRuns  #rough, todo make real sl
 
 num_iterations = float(num_timesteps) / 10
 
-lr_multiplier = 10.0
+lr_multiplier = 1
 lr_schedule = dqn_utils.PiecewiseSchedule([
 									 (0,                   1e-4 * lr_multiplier),
 									 (num_iterations / 10, 1e-4 * lr_multiplier),
