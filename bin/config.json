@@ -2,13 +2,13 @@
     "version":                                             0,
     "execution": {
         "numCPUs":                                         1,
-        "numRuns":                                         100,
+        "numRuns":                                         300,
         "verbose":                                     true
 
     },
     "settings": {
         "combination": {
-            "exec_numMotes":                               [2],
+            "exec_numMotes":                               [3],
             "tsch_slotframeLength":                        [13],
             "tsch_probBcast_ebProb":                       [0.1]
         },
@@ -66,7 +66,7 @@
             "steps_to_train" :                             5000,
             "lr_multiplier" :                               10,
             "reward_scaler" :                               0.00001,
-            "etx_weight" :                                  0.000,
+            "etx_weight" :                                  0.05,
             "grad_clipping":                                100,
             "batch_size":                                   32
         }

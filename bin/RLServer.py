@@ -106,8 +106,8 @@ def lander_model(obs, num_actions, scope, reuse=False):
 exploration_schedule = dqn_utils.PiecewiseSchedule(
 	[
 		(0, 1.0),
-		(num_iterations/5, 0.4),
-		(num_iterations , 0.05),
+		(num_iterations/5, 0.2),
+		(num_iterations/2 , 0.05),
 	], outside_value=0.01
 )
 algs = {}

@@ -28,7 +28,7 @@ dirname = "SimData/20181016-120404-311"
 no_figures = False
 plot_all = False
 plot_mote_num = 1
-animation = False
+animation = True
 #matplotlib.use('TkAgg')
 import pylab
 pylab.ion()
@@ -250,7 +250,7 @@ def load_data(inputfile):
 
     run=0
     mote_num=1
-    plot_div = 1   
+    plot_div = 9   
     count = 0
     run_reward = {}
     etx_dict = {}

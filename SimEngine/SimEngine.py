@@ -415,6 +415,10 @@ class DiscreteEventEngine(threading.Thread):
         
         self.last_observations = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
         self.last_observations_native = self.connectivity.coordinates.values() #these become current observations now
+        self.last_observations_full = ()
+        for tup in self.connectivity.coordinates.values():
+            self.last_observations_full += tup
+
 
 
 
@@ -665,7 +669,8 @@ class DiscreteEventEngine(threading.Thread):
                     #print last_observations[i*2:i*2+2].tostring()
                     #actions = self.alg.step_env(last_observations[i*2:i*2+2])
                     #print last_observations_native
-
+                    #print "total obs array", self.connectivity.coordinates.values()
+                    #print "total obs array unwrapped", self.last_observations_full
                     actions = self.socket.step_env(self.last_observations_native[i] + tuple(self.last_actions.values()),i)
                     #print "step env observation vector" , self.last_observations_native[i] + tuple(self.last_actions.values() )
 
