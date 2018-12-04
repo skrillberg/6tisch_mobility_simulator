@@ -23,12 +23,13 @@ from SimEngine import SimLog
 from SimEngine import SimEngine
 import SimEngine.Mote.MoteDefines as d
 
-override = False
-dirname = "SimData/20181016-120404-311"
+override = True
+dirname = "simData/experiment_6"
 no_figures = False
 plot_all = False
 plot_mote_num = 1
-animation = True
+animation = False
+run_batch = 100
 #matplotlib.use('TkAgg')
 import pylab
 pylab.ion()
@@ -39,6 +40,7 @@ DAGROOT_IP = 'fd00::1:0'
 save_data_ebs = [] #list of dicts
 def load_data(inputfile):
     global save_data_ebs 
+    global run_batch
     allstats = {} # indexed by run_id, mote_id
 
     file_settings = json.loads(inputfile.readline())  # first line contains settings
@@ -46,462 +48,495 @@ def load_data(inputfile):
     print "num motes: ",file_settings["exec_numMotes"]
     print "EB Probability" , file_settings["tsch_probBcast_ebProb"]
     # === gather raw stats
-
-    for line in inputfile:
-        logline = json.loads(line)
-
-        # shorthands
-        run_id = logline['_run_id']
-
-        # populate
-        if run_id not in allstats:
-            allstats[run_id] = {}
-
-        
-
-        if   logline['_type'] == SimLog.LOG_RPL_CHURN['type']:
+    run_count = 0
+    run_reward = {}
+    batches_left = True
+    batch_num = 0
+    while batches_left == True:
+        allstats = {}
+        batches_left = False
+        print "batch_num",  batch_num
+        for line in inputfile:
+            
+            logline = json.loads(line)
 
             # shorthands
-            mote_id    = logline['_mote_id']
-            asn        = logline['_asn']
-            rank       = logline['rank']
-            parent     = logline['preferredParent']
-
-            # only log non-dagRoot sync times
-            if mote_id == DAGROOT_ID:
-                continue
+            run_id = logline['_run_id']
 
             # populate
-            if mote_id not in allstats[run_id]:
-                allstats[run_id][mote_id] = {}
-                        # test for existence of mote
-            #test for existence of churn
-            if 'churn' not in allstats[run_id][mote_id]:
-                allstats[run_id][mote_id]['churn'] = [] 
+            if run_id not in allstats:
+                allstats[run_id] = {}
+                if run_count < (1+ batch_num) * (run_batch):
+                    run_count += 1
+                    batches_left = True
+                else:
+                    batch_num += 1
+                    break
 
-            allstats[run_id][mote_id]['churn'].append({'asn' : asn,
-                'time_s' : asn*file_settings['tsch_slotDuration'], 
-                'parent' : parent, 
-                'rank' : rank}) 
+            
 
-        elif   logline['_type'] == SimLog.LOG_RPL_DIO_TX ['type']:
+            if   logline['_type'] == SimLog.LOG_RPL_CHURN['type']:
 
-            # shorthands
-            mote_id    = logline['_mote_id']
-            asn        = logline['_asn']
+                # shorthands
+                mote_id    = logline['_mote_id']
+                asn        = logline['_asn']
+                rank       = logline['rank']
+                parent     = logline['preferredParent']
 
-            # only log non-dagRoot sync times
-            if mote_id == DAGROOT_ID:
-                continue
+                # only log non-dagRoot sync times
+                if mote_id == DAGROOT_ID:
+                    continue
 
-            # populate
-            if mote_id not in allstats[run_id]:
-                allstats[run_id][mote_id] = {}
-                        # test for existence of mote
-            #test for existence of churn
-            if 'dios' not in allstats[run_id][mote_id]:
-                allstats[run_id][mote_id]['dios'] = [] 
+                # populate
+                if mote_id not in allstats[run_id]:
+                    allstats[run_id][mote_id] = {}
+                            # test for existence of mote
+                #test for existence of churn
+                if 'churn' not in allstats[run_id][mote_id]:
+                    allstats[run_id][mote_id]['churn'] = [] 
 
-            allstats[run_id][mote_id]['dios'].append({'asn' : asn,
-                'time_s' : asn*file_settings['tsch_slotDuration']}) 
+                allstats[run_id][mote_id]['churn'].append({'asn' : asn,
+                    'time_s' : asn*file_settings['tsch_slotDuration'], 
+                    'parent' : parent, 
+                    'rank' : rank}) 
 
-        elif   logline['_type'] == SimLog.LOG_LOCATION_UPDATE ['type']:
+            elif   logline['_type'] == SimLog.LOG_RPL_DIO_TX ['type']:
 
-            # shorthands
-            mote_id    = logline['_mote_id']
-            asn        = logline['_asn']
-            x          = logline['x']
-            y          = logline['y']
-            reward      = logline['reward']
-            # populate
-            if mote_id not in allstats[run_id]:
-                allstats[run_id][mote_id] = {}
-                        # test for existence of mote
-            #test for existence of x and y
-            if 'location' not in allstats[run_id][mote_id]:
-                allstats[run_id][mote_id]['location'] = [] 
+                # shorthands
+                mote_id    = logline['_mote_id']
+                asn        = logline['_asn']
 
-            allstats[run_id][mote_id]['location'].append({'asn' : asn,
-                'time_s' : asn*file_settings['tsch_slotDuration'],
-                'x' : x,
-                'y' : y,
-                'reward' : reward}
+                # only log non-dagRoot sync times
+                if mote_id == DAGROOT_ID:
+                    continue
+
+                # populate
+                if mote_id not in allstats[run_id]:
+                    allstats[run_id][mote_id] = {}
+                            # test for existence of mote
+                #test for existence of churn
+                if 'dios' not in allstats[run_id][mote_id]:
+                    allstats[run_id][mote_id]['dios'] = [] 
+
+                allstats[run_id][mote_id]['dios'].append({'asn' : asn,
+                    'time_s' : asn*file_settings['tsch_slotDuration']}) 
+
+            elif   logline['_type'] == SimLog.LOG_LOCATION_UPDATE ['type']:
+
+                # shorthands
+                mote_id    = logline['_mote_id']
+                asn        = logline['_asn']
+                x          = logline['x']
+                y          = logline['y']
+                reward      = logline['reward']
+                # populate
+                if mote_id not in allstats[run_id]:
+                    allstats[run_id][mote_id] = {}
+                            # test for existence of mote
+                #test for existence of x and y
+                if 'location' not in allstats[run_id][mote_id]:
+                    allstats[run_id][mote_id]['location'] = [] 
+
+                allstats[run_id][mote_id]['location'].append({'asn' : asn,
+                    'time_s' : asn*file_settings['tsch_slotDuration'],
+                    'x' : x,
+                    'y' : y,
+                    'reward' : reward}
+                    ) 
+
+            elif   logline['_type'] == SimLog.LOG_LOCATION_CONNECTIVITY ['type']:
+
+                # shorthands
+              
+                asn        = logline['_asn']
+                mote_id        = logline['src_mote']
+                dst_mote    = logline['dst_mote']
+                rssi        = logline['rssi']
+                pdr         = logline['pdr']
+                #print connectivity
+
+            
+
+                # populate
+                if mote_id not in allstats[run_id]:
+                    allstats[run_id][mote_id] = {}
+                            # test for existence of mote
+                #test for existence of x and y
+                if 'connectivity' not in allstats[run_id][mote_id]:
+                    allstats[run_id][mote_id]['connectivity'] = [] 
+
+                allstats[run_id][mote_id]['connectivity'].append({
+                    'asn' : asn,
+                    'rssi' : rssi,
+                    'pdr' : pdr,
+                    'time_s' : asn*file_settings['tsch_slotDuration'],
+                    'dst_mote' : dst_mote
+                    }
                 ) 
 
-        elif   logline['_type'] == SimLog.LOG_LOCATION_CONNECTIVITY ['type']:
+            elif logline['_type'] == SimLog.LOG_PACKET_DROPPED['type']:
+                # packet dropped
 
-            # shorthands
-          
-            asn        = logline['_asn']
-            mote_id        = logline['src_mote']
-            dst_mote    = logline['dst_mote']
-            rssi        = logline['rssi']
-            pdr         = logline['pdr']
-            #print connectivity
+                # shorthands
+                mote_id    = logline['_mote_id']
+                reason     = logline['reason']
+                asn        = logline['_asn']
+                # populate
+                if mote_id not in allstats[run_id]:
+                    allstats[run_id][mote_id] = {}
 
+                if 'packet_drops' not in allstats[run_id][mote_id]:
+                    allstats[run_id][mote_id]['packet_drops'] = []
+
+                allstats[run_id][mote_id]['packet_drops'].append({'asn' : asn, 'time_s': asn*file_settings['tsch_slotDuration']}) 
+
+            elif logline['_type'] == SimLog.LOG_MOBILITY_ETX['type']:
+                # packet dropped
+
+                # shorthands
+                mote_id    = logline['_mote_id']
+                neighbor     = logline['neighbor']['mac_addr']
+                numTx      =logline['neighbor']['numTx']
+                numTxAck    =logline['neighbor']['numTxAck']
+                asn        = logline['_asn']
+                etx        = logline['etx']
+                # populate
+                if mote_id not in allstats[run_id]:
+                    allstats[run_id][mote_id] = {}
+
+                if 'etx' not in allstats[run_id][mote_id]:
+                    allstats[run_id][mote_id]['etx'] = []
+
+                allstats[run_id][mote_id]['etx'].append({'asn' : asn, 'time_s': asn*file_settings['tsch_slotDuration'],'neighbor': neighbor,'numTx':numTx,'numTxAck':numTxAck,'etx':etx}) 
+
+            elif logline['_type'] == SimLog.LOG_MOBILITY_NEIGHBORS['type']:
+                # packet dropped
+
+                # shorthands
+                mote_id    = logline['_mote_id']
+                neighbor_table     = logline['neighbor_table']
+                asn        = logline['_asn']
+                # populate
+                if mote_id not in allstats[run_id]:
+                    allstats[run_id][mote_id] = {}
+
+                if 'neighbor_table' not in allstats[run_id][mote_id]:
+                    allstats[run_id][mote_id]['neighbor_table'] = []
+
+                allstats[run_id][mote_id]['neighbor_table'].append({'asn' : asn, 'time_s': asn*file_settings['tsch_slotDuration'],'neighbor_table': neighbor_table}) 
+            
+            elif logline['_type'] == SimLog.LOG_TSCH_EB_TX['type']: 
+                mote_id    = logline['_mote_id']
+                asn        = logline['_asn']
+                packet     = logline['packet']
+                # populate
+                if mote_id not in allstats[run_id]:
+                    allstats[run_id][mote_id] = {}
+
+                if 'eb_tx' not in allstats[run_id][mote_id]:
+                    allstats[run_id][mote_id]['eb_tx'] = []
+
+                allstats[run_id][mote_id]['eb_tx'].append({'asn' : asn, 'time_s': asn*file_settings['tsch_slotDuration']}) 
+
+            elif logline['_type'] == SimLog.LOG_TSCH_EB_RX['type']: 
+                mote_id    = logline['_mote_id']
+                asn        = logline['_asn']
+                packet     = logline['packet']
+                # populate
+                if mote_id not in allstats[run_id]:
+                    allstats[run_id][mote_id] = {}
+
+                if 'eb_rx' not in allstats[run_id][mote_id]:
+                    allstats[run_id][mote_id]['eb_rx'] = []
+
+                allstats[run_id][mote_id]['eb_rx'].append({'asn' : asn, 'time_s': asn*file_settings['tsch_slotDuration']}) 
+
+            elif logline['_type'] == SimLog.LOG_PROP_INTERFERENCE['type']: 
+                mote_id    = logline['_mote_id']
+                asn        = logline['_asn']
+                channel     = logline['channel']
+                # populate
+                if mote_id not in allstats[run_id]:
+                    allstats[run_id][mote_id] = {}
+
+                if 'collision' not in allstats[run_id][mote_id]:
+                    allstats[run_id][mote_id]['collision'] = []
+
+                allstats[run_id][mote_id]['collision'].append({'asn' : asn, 'time_s': asn*file_settings['tsch_slotDuration']}) 
+      
+
+            ###line read for loop is over############################
+        if run_count % run_batch != 0:
+            print "leaving while loop"
+            print run_count, run_batch
+            batches_left = False
+
+        print "run count and run batch",run_count, run_batch
+        run=0
+        mote_num=1
+        plot_div = 9  
+        count = 0
         
-
-            # populate
-            if mote_id not in allstats[run_id]:
-                allstats[run_id][mote_id] = {}
-                        # test for existence of mote
-            #test for existence of x and y
-            if 'connectivity' not in allstats[run_id][mote_id]:
-                allstats[run_id][mote_id]['connectivity'] = [] 
-
-            allstats[run_id][mote_id]['connectivity'].append({
-                'asn' : asn,
-                'rssi' : rssi,
-                'pdr' : pdr,
-                'time_s' : asn*file_settings['tsch_slotDuration'],
-                'dst_mote' : dst_mote
-                }
-            ) 
-
-        elif logline['_type'] == SimLog.LOG_PACKET_DROPPED['type']:
-            # packet dropped
-
-            # shorthands
-            mote_id    = logline['_mote_id']
-            reason     = logline['reason']
-            asn        = logline['_asn']
-            # populate
-            if mote_id not in allstats[run_id]:
-                allstats[run_id][mote_id] = {}
-
-            if 'packet_drops' not in allstats[run_id][mote_id]:
-                allstats[run_id][mote_id]['packet_drops'] = []
-
-            allstats[run_id][mote_id]['packet_drops'].append({'asn' : asn, 'time_s': asn*file_settings['tsch_slotDuration']}) 
-
-        elif logline['_type'] == SimLog.LOG_MOBILITY_ETX['type']:
-            # packet dropped
-
-            # shorthands
-            mote_id    = logline['_mote_id']
-            neighbor     = logline['neighbor']['mac_addr']
-            numTx      =logline['neighbor']['numTx']
-            numTxAck    =logline['neighbor']['numTxAck']
-            asn        = logline['_asn']
-            etx        = logline['etx']
-            # populate
-            if mote_id not in allstats[run_id]:
-                allstats[run_id][mote_id] = {}
-
-            if 'etx' not in allstats[run_id][mote_id]:
-                allstats[run_id][mote_id]['etx'] = []
-
-            allstats[run_id][mote_id]['etx'].append({'asn' : asn, 'time_s': asn*file_settings['tsch_slotDuration'],'neighbor': neighbor,'numTx':numTx,'numTxAck':numTxAck,'etx':etx}) 
-
-        elif logline['_type'] == SimLog.LOG_MOBILITY_NEIGHBORS['type']:
-            # packet dropped
-
-            # shorthands
-            mote_id    = logline['_mote_id']
-            neighbor_table     = logline['neighbor_table']
-            asn        = logline['_asn']
-            # populate
-            if mote_id not in allstats[run_id]:
-                allstats[run_id][mote_id] = {}
-
-            if 'neighbor_table' not in allstats[run_id][mote_id]:
-                allstats[run_id][mote_id]['neighbor_table'] = []
-
-            allstats[run_id][mote_id]['neighbor_table'].append({'asn' : asn, 'time_s': asn*file_settings['tsch_slotDuration'],'neighbor_table': neighbor_table}) 
-        
-        elif logline['_type'] == SimLog.LOG_TSCH_EB_TX['type']: 
-            mote_id    = logline['_mote_id']
-            asn        = logline['_asn']
-            packet     = logline['packet']
-            # populate
-            if mote_id not in allstats[run_id]:
-                allstats[run_id][mote_id] = {}
-
-            if 'eb_tx' not in allstats[run_id][mote_id]:
-                allstats[run_id][mote_id]['eb_tx'] = []
-
-            allstats[run_id][mote_id]['eb_tx'].append({'asn' : asn, 'time_s': asn*file_settings['tsch_slotDuration']}) 
-
-        elif logline['_type'] == SimLog.LOG_TSCH_EB_RX['type']: 
-            mote_id    = logline['_mote_id']
-            asn        = logline['_asn']
-            packet     = logline['packet']
-            # populate
-            if mote_id not in allstats[run_id]:
-                allstats[run_id][mote_id] = {}
-
-            if 'eb_rx' not in allstats[run_id][mote_id]:
-                allstats[run_id][mote_id]['eb_rx'] = []
-
-            allstats[run_id][mote_id]['eb_rx'].append({'asn' : asn, 'time_s': asn*file_settings['tsch_slotDuration']}) 
-
-        elif logline['_type'] == SimLog.LOG_PROP_INTERFERENCE['type']: 
-            mote_id    = logline['_mote_id']
-            asn        = logline['_asn']
-            channel     = logline['channel']
-            # populate
-            if mote_id not in allstats[run_id]:
-                allstats[run_id][mote_id] = {}
-
-            if 'collision' not in allstats[run_id][mote_id]:
-                allstats[run_id][mote_id]['collision'] = []
-
-            allstats[run_id][mote_id]['collision'].append({'asn' : asn, 'time_s': asn*file_settings['tsch_slotDuration']}) 
-
-    run=0
-    mote_num=1
-    plot_div = 9   
-    count = 0
-    run_reward = {}
-    etx_dict = {}
-    for run in allstats:
-        for mote_num in allstats[run]:
-
+        etx_dict = {}
+        for run in allstats:
             run_reward[run] = {}
+            for mote_num in allstats[run]:
 
-            if 'location' in allstats[run][mote_num]:
-                locations = pandas.DataFrame.from_dict(allstats[run][mote_num]['location'])
-                run_reward[run][mote_num] = numpy.sum(locations['reward'])
-                print "Average Reward: ", run_reward[run][mote_num]
-
-            if (mote_num == plot_mote_num or plot_all) and (count % plot_div == 0):
-                #print allstats
-                print mote_num
-                dataline =   {"slotframe_length" : file_settings["tsch_slotframeLength"],
-                                "num_motes" : file_settings["exec_numMotes"],
-                                "square_size" : file_settings["conn_random_square_side"],
-                                "eb_rx_rate" : None,
-                                "eb_prob" : file_settings["tsch_probBcast_ebProb"]
-
-
-                                }
-                if 'dios' in allstats[run][mote_num]:
-                    plt.figure()
-                    dios = pandas.DataFrame.from_dict(allstats[run][mote_num]['dios'])
-                    plt.stem(dios['time_s'],numpy.ones(len(dios['time_s'])))
-                    if no_figures:
-                        plt.clf()
-
-                if 'eb_tx' in allstats[run][mote_num]:
-                    plt.figure()
-                    eb_txs = pandas.DataFrame.from_dict(allstats[run][mote_num]['eb_tx'])
-                    plt.stem(eb_txs['time_s'],numpy.ones(len(eb_txs['time_s'])))
-                    plt.title('EB Transmissions: ' + str(len(eb_txs)/
-                                                    (eb_txs['time_s'].iloc[-1] - eb_txs['time_s'].iloc[0])+0.000001) +
-                                                    " Hz"
-
-                    )
-                    print("Average EB Tx Rate: ", len(eb_txs)/
-                                                    (eb_txs['time_s'].iloc[-1] - eb_txs['time_s'].iloc[0]+0.000001)
-                    )
-                    dataline['eb_txs']=len(eb_txs)
-
-                    if no_figures:
-                        plt.clf()                
-
-                if 'eb_rx' in allstats[run][mote_num]:
-                    plt.figure()
-                    eb_rxs = pandas.DataFrame.from_dict(allstats[run][mote_num]['eb_rx'])
-                    plt.stem(eb_rxs['time_s'],numpy.ones(len(eb_rxs['time_s'])))
-                    plt.title('EB Receptions: ' + str(len(eb_rxs)/
-                                                    (eb_rxs['time_s'].iloc[-1] - eb_rxs['time_s'].iloc[0]+0.000001)) +
-                                                    " Hz"
-                    )
-                    print("Average EB Rx Rate: ", len(eb_rxs)/
-                                                    (eb_rxs['time_s'].iloc[-1] - eb_rxs['time_s'].iloc[0]+0.000001)
-                    )
-                    dataline["eb_rx_rate"] = len(eb_rxs)/ (eb_rxs['time_s'].iloc[-1] - eb_rxs['time_s'].iloc[0]+0.000001)
-                    if no_figures:
-                        plt.clf()
-
-                if 'collision' in allstats[run][mote_num]:
-                    plt.figure()
-                    collisions = pandas.DataFrame.from_dict(allstats[run][mote_num]['collision'])
-                    plt.stem(collisions['time_s'],numpy.ones(len(collisions['time_s'])))
-                    plt.title('packet Collisions')
-
-                    dataline["collisions"] = len(collisions)
-                    if no_figures:
-                        plt.clf()
-
-                if 'churn' in allstats[run][mote_num]:
-                    churn = pandas.DataFrame.from_dict(allstats[run][mote_num]['churn'])
-                    #print churn
-                    plt.figure()
-                    plt.tight_layout()
-                    plt.step(churn['time_s'],churn['parent'])
-                    plt.xlabel('Time (s)')
-                    plt.ylabel('Network Parent')
-                    if no_figures:
-                        plt.clf()
-
-                if 'connectivity' in allstats[run][mote_num]:
-                    conn = pandas.DataFrame.from_dict(allstats[run][mote_num]['connectivity'])
-                    #print conn
-                    plt.figure()
-                    plt.plot(conn['time_s'],conn['rssi'])
-                    if no_figures:
-                        plt.clf()
-
-                if 'packet_drops' in allstats[run][mote_num]:
-                    packet_drops = pandas.DataFrame.from_dict(allstats[run][mote_num]['packet_drops'])
-                    plt.figure()
-                    plt.stem(packet_drops['time_s'],numpy.ones(len(packet_drops['time_s'])))
-                    plt.title('packet drops')
-                    if no_figures:
-                        plt.clf()
+                
 
                 if 'location' in allstats[run][mote_num]:
-                    
-                    print "Plotting Locations and Topology"
+                    #print allstats[run][1]['location']
                     locations = pandas.DataFrame.from_dict(allstats[run][mote_num]['location'])
-                    fig = plt.figure()
-                    for mote in allstats[run].keys():
-                        mote_traj = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
+                    run_reward[run][mote_num] = numpy.sum(locations['reward'])
+                    print "Average Reward: ", run_reward[run][mote_num], len(locations['reward']), mote_num
+                    #print run_reward[run]
+                if (mote_num == plot_mote_num or plot_all) and (count % plot_div == 0):
+                    #print allstats
+                    print mote_num
+                    dataline =   {"slotframe_length" : file_settings["tsch_slotframeLength"],
+                                    "num_motes" : file_settings["exec_numMotes"],
+                                    "square_size" : file_settings["conn_random_square_side"],
+                                    "eb_rx_rate" : None,
+                                    "eb_prob" : file_settings["tsch_probBcast_ebProb"]
+
+
+                                    }
+                    if 'dios' in allstats[run][mote_num]:
+                        plt.figure()
+                        dios = pandas.DataFrame.from_dict(allstats[run][mote_num]['dios'])
+                        plt.stem(dios['time_s'],numpy.ones(len(dios['time_s'])))
+                        if no_figures:
+                            plt.clf()
+
+                    if 'eb_tx' in allstats[run][mote_num]:
+                        plt.figure()
+                        eb_txs = pandas.DataFrame.from_dict(allstats[run][mote_num]['eb_tx'])
+                        plt.stem(eb_txs['time_s'],numpy.ones(len(eb_txs['time_s'])))
+                        plt.title('EB Transmissions: ' + str(len(eb_txs)/
+                                                        (eb_txs['time_s'].iloc[-1] - eb_txs['time_s'].iloc[0])+0.000001) +
+                                                        " Hz"
+
+                        )
+                        print("Average EB Tx Rate: ", len(eb_txs)/
+                                                        (eb_txs['time_s'].iloc[-1] - eb_txs['time_s'].iloc[0]+0.000001)
+                        )
+                        dataline['eb_txs']=len(eb_txs)
+
+                        if no_figures:
+                            plt.clf()                
+
+                    if 'eb_rx' in allstats[run][mote_num]:
+                        plt.figure()
+                        eb_rxs = pandas.DataFrame.from_dict(allstats[run][mote_num]['eb_rx'])
+                        plt.stem(eb_rxs['time_s'],numpy.ones(len(eb_rxs['time_s'])))
+                        plt.title('EB Receptions: ' + str(len(eb_rxs)/
+                                                        (eb_rxs['time_s'].iloc[-1] - eb_rxs['time_s'].iloc[0]+0.000001)) +
+                                                        " Hz"
+                        )
+                        print("Average EB Rx Rate: ", len(eb_rxs)/
+                                                        (eb_rxs['time_s'].iloc[-1] - eb_rxs['time_s'].iloc[0]+0.000001)
+                        )
+                        dataline["eb_rx_rate"] = len(eb_rxs)/ (eb_rxs['time_s'].iloc[-1] - eb_rxs['time_s'].iloc[0]+0.000001)
+                        if no_figures:
+                            plt.clf()
+
+                    if 'collision' in allstats[run][mote_num]:
+                        plt.figure()
+                        collisions = pandas.DataFrame.from_dict(allstats[run][mote_num]['collision'])
+                        plt.stem(collisions['time_s'],numpy.ones(len(collisions['time_s'])))
+                        plt.title('packet Collisions')
+
+                        dataline["collisions"] = len(collisions)
+                        if no_figures:
+                            plt.clf()
+
+                    if 'churn' in allstats[run][mote_num]:
+                        churn = pandas.DataFrame.from_dict(allstats[run][mote_num]['churn'])
+                        #print churn
+                        plt.figure()
+                        plt.tight_layout()
+                        plt.step(churn['time_s'],churn['parent'])
+                        plt.xlabel('Time (s)')
+                        plt.ylabel('Network Parent')
+                        if no_figures:
+                            plt.clf()
+                        plt.savefig(subfolder +"/" + "rpl" +str(run) + "_" + str(mote_num))
+                    if 'connectivity' in allstats[run][mote_num]:
+                        conn = pandas.DataFrame.from_dict(allstats[run][mote_num]['connectivity'])
+                        #print conn
+                        plt.figure()
+                        plt.plot(conn['time_s'],conn['rssi'])
+                        if no_figures:
+                            plt.clf()
+
+                    if 'packet_drops' in allstats[run][mote_num]:
+                        packet_drops = pandas.DataFrame.from_dict(allstats[run][mote_num]['packet_drops'])
+                        plt.figure()
+                        plt.stem(packet_drops['time_s'],numpy.ones(len(packet_drops['time_s'])))
+                        plt.title('packet drops')
+                        if no_figures:
+                            plt.clf()
+
+                    if 'location' in allstats[run][mote_num]:
                         
-                        plt.plot(mote_traj['x'],mote_traj['y'])
-                        plt.xlabel("X Coordinate (km)")
-                        plt.ylabel("Y Coordinate (km)")
-
-                        plt.scatter(mote_traj['x'].iloc[-1],mote_traj['y'].iloc[-1])
-                        plt.annotate(str(mote),(mote_traj['x'].iloc[-1],mote_traj['y'].iloc[-1]))
-                    #if no_figures:
-                     #   plt.clf()
-                    for mote in range(0,len(allstats[run])):
-                        if 'churn' in allstats[run][mote] and 'location' in allstats[run][mote]:
-                            churn = pandas.DataFrame.from_dict(allstats[run][mote]['churn'])
-                            #print str(churn['parent'].iloc[-1][-2:])
-                            #print mote
-                            #print churn
-                            parent_num = int(str(churn['parent'].iloc[-1][-2:]),16)
-                            child_location = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
-                            parent_location = pandas.DataFrame.from_dict(allstats[run][parent_num]['location'])
-                            plt.plot((child_location['x'].iloc[-1],parent_location['x'].iloc[-1]),(child_location['y'].iloc[-1],parent_location['y'].iloc[-1]), '--')
-                    plt.savefig(subfolder+"/"+"traj"+str(run))
-                    plt.figure()
-                    plt.subplot(311)
-                    plt.title('Mote 1 Locations')
-                    plt.plot(locations['time_s'],locations['x'])
-                    plt.xlabel('Time (s)')
-
-                    plt.subplot(312)
-                    plt.plot(locations['time_s'],locations['y'])
-                    plt.xlabel('Time (s)')
-
-                    plt.subplot(313)
-                    plt.plot(locations['time_s'],numpy.sqrt(numpy.square(locations['x']) + numpy.square(locations['y'])))
-                    plt.xlabel('Time (s)')
-                    plt.figure()
-                    #print locations
-                    plt.plot(locations['time_s'],locations['reward'])
-                    plt.title("rewards")
-                    plt.ylabel("Reward")
-                    plt.xlabel("Time (s)")
-                    plt.savefig(subfolder+"/"+"rewards"+str(run))
-
-                    #if no_figures:
-                        #plt.clf()
-                #print "dataline ", dataline
-                #print save_data_ebs
-                
-                if 'location' in allstats[run][mote_num] and animation:
-                    
-                    #print "Plotting Animation Frames"
-                    global imgs
-   
-                    
-                    #build animation dataframe
-                    anidata = {}
-                    for mote in allstats[run].keys():
-                        anidata[mote] = allstats[run][mote]['location']
-                    anidata = pandas.DataFrame.from_dict(anidata)
-
-                    #print anidata.shape
-                    #print range(0,anidata.shape[0],1000)
-                    i, files, removed = 0, [], []
-                    # kargs = { 'macro_block_size' : None } # include **kargs in writer if running in linux
-                    writer = imageio.get_writer(os.path.join(subfolder, "animation" + str(run)+'.mp4'), fps=20)
-
-                    for timestep in range(0,anidata.shape[0],100):
+                        print "Plotting Locations and Topology"
+                        locations = pandas.DataFrame.from_dict(allstats[run][mote_num]['location'])
                         fig = plt.figure()
+                        for mote in allstats[run].keys():
+                            mote_traj = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
+                            
+                            plt.plot(mote_traj['x'],mote_traj['y'])
+                            plt.xlabel("X Coordinate (km)")
+                            plt.ylabel("Y Coordinate (km)")
 
-                        time_s = anidata.iloc[timestep][mote]["time_s"]
-                       # print timestep, time_s
-                        for mote in anidata.keys():
-                            #print mote
-                            #print anidata.iloc[timestep]
-                            mote_loc_x = anidata.iloc[timestep][mote]["x"]
-                            mote_loc_y = anidata.iloc[timestep][mote]["y"]
-                            #plt.plot(mote_traj['x'],mote_traj['y'])
-                            plt.scatter(mote_loc_x,mote_loc_y)
-                            plt.annotate(str(mote),(mote_loc_x,mote_loc_y))
+                            plt.scatter(mote_traj['x'].iloc[-1],mote_traj['y'].iloc[-1])
+                            plt.annotate(str(mote),(mote_traj['x'].iloc[-1],mote_traj['y'].iloc[-1]))
                         #if no_figures:
                          #   plt.clf()
-                        
+                        for mote in range(0,len(allstats[run])):
                             if 'churn' in allstats[run][mote] and 'location' in allstats[run][mote]:
                                 churn = pandas.DataFrame.from_dict(allstats[run][mote]['churn'])
                                 #print str(churn['parent'].iloc[-1][-2:])
-                                #print "printing churn"
+                                #print mote
                                 #print churn
-
-                                #find time step
-                                index = None
-                                for idx in range(0,churn.shape[0]-1):
-                                    if time_s >= churn.iloc[idx]["time_s"] and time_s < churn.iloc[idx+1]["time_s"]:
-                                        index = idx 
-                                        break
-                                    elif time_s >= churn.iloc[churn.shape[0]-1]["time_s"]:
-                                        index =  churn.shape[0]-1
-                                        break
-                                if churn.shape[0] == 1:
-                                    index = 0
-                                if index is not None:
-                                    parent_num = int(str(churn['parent'].iloc[index][-2:]),16)
-                                    child_location = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
-                                    parent_location = pandas.DataFrame.from_dict(allstats[run][parent_num]['location'])
-                                    plt.plot((child_location['x'].iloc[timestep],parent_location['x'].iloc[timestep]),(child_location['y'].iloc[timestep],parent_location['y'].iloc[timestep]), '--')
-                        fname = os.path.join(subfolder,'_frame' + str(i) + '.png')
-                        files.append(fname) # TODO: tweak so fps converts to correct timestamp in seconds
-                        plt.xlim([0, 1])
-                        plt.ylim([-0.1, 0.2])
-                        plt.xlabel("X Location (km)")
-                        plt.ylabel("Y Location (km)")
-                        #print os.path.join(subfolder,files[i])
-                        plt.savefig(os.path.join(files[i]))
-                        plt.close(fig)
-                        writer.append_data(imageio.imread(files[i])[:, :, :])
-                        os.remove(files[i])
-                        removed.append(fname)
-                        
-                        #print fname
-                        i += 1
-
-                for mote_num in range(1,2):
-                    #print "mote number: ",mote_num
-                    if 'etx' in allstats[run][mote_num]:
-                        etxs = pandas.DataFrame.from_dict(allstats[run][mote_num]['etx'])
-                        #print etxs
+                                parent_num = int(str(churn['parent'].iloc[-1][-2:]),16)
+                                child_location = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
+                                parent_location = pandas.DataFrame.from_dict(allstats[run][parent_num]['location'])
+                                plt.plot((child_location['x'].iloc[-1],parent_location['x'].iloc[-1]),(child_location['y'].iloc[-1],parent_location['y'].iloc[-1]), '--')
+                        plt.savefig(subfolder+"/"+"traj"+str(run))
                         plt.figure()
-                        plt.plot(etxs['time_s'],etxs['etx'])
-                        plt.title("ETX")
-                        plt.savefig(subfolder +"/" + "etx" +str(run) + "_" + str(mote_num))
-                        if no_figures:
-                            plt.clf()
-                    if 'neighbor_table' in allstats[run][mote_num]:
-                        neighbor_table = pandas.DataFrame.from_dict(allstats[run][mote_num]['neighbor_table'])
-                        dataline["num_neighbors"] = len(neighbor_table['neighbor_table'])
-                        #print neighbor_table
+                        plt.subplot(311)
+                        plt.title('Mote 1 Locations')
+                        plt.plot(locations['time_s'],locations['x'])
+                        plt.xlabel('Time (s)')
 
-                save_data_ebs.append(dataline)
+                        plt.subplot(312)
+                        plt.plot(locations['time_s'],locations['y'])
+                        plt.xlabel('Time (s)')
 
-        count = count + 1
-            #plt.show()
+                        plt.subplot(313)
+                        plt.plot(locations['time_s'],numpy.sqrt(numpy.square(locations['x']) + numpy.square(locations['y'])))
+                        plt.xlabel('Time (s)')
+                        plt.figure()
+                        #print locations
+                        plt.plot(locations['time_s'],locations['reward'])
+                        plt.title("rewards")
+                        plt.ylabel("Reward")
+                        plt.xlabel("Time (s)")
+                        plt.savefig(subfolder+"/"+"rewards"+str(run))
 
+                        #if no_figures:
+                            #plt.clf()
+                    #print "dataline ", dataline
+                    #print save_data_ebs
+                    
+                    if 'location' in allstats[run][mote_num] and animation:
+                        
+                        #print "Plotting Animation Frames"
+                        global imgs
+       
+                        
+                        #build animation dataframe
+                        anidata = {}
+                        for mote in allstats[run].keys():
+                            anidata[mote] = allstats[run][mote]['location']
+                        anidata = pandas.DataFrame.from_dict(anidata)
+
+                        #print anidata.shape
+                        #print range(0,anidata.shape[0],1000)
+                        i, files, removed = 0, [], []
+                        # kargs = { 'macro_block_size' : None } # include **kargs in writer if running in linux
+                        writer = imageio.get_writer(os.path.join(subfolder, "animation" + str(run)+'.mp4'), fps=20)
+
+                        for timestep in range(0,anidata.shape[0],100):
+                            fig = plt.figure()
+
+                            time_s = anidata.iloc[timestep][mote]["time_s"]
+                           # print timestep, time_s
+                            for mote in anidata.keys():
+                                #print mote
+                                #print anidata.iloc[timestep]
+                                mote_loc_x = anidata.iloc[timestep][mote]["x"]
+                                mote_loc_y = anidata.iloc[timestep][mote]["y"]
+                                #plt.plot(mote_traj['x'],mote_traj['y'])
+                                plt.scatter(mote_loc_x,mote_loc_y)
+                                plt.annotate(str(mote),(mote_loc_x,mote_loc_y))
+                            #if no_figures:
+                             #   plt.clf()
+                            
+                                if 'churn' in allstats[run][mote] and 'location' in allstats[run][mote]:
+                                    churn = pandas.DataFrame.from_dict(allstats[run][mote]['churn'])
+                                    #print str(churn['parent'].iloc[-1][-2:])
+                                    #print "printing churn"
+                                    #print churn
+
+                                    #find time step
+                                    index = None
+                                    for idx in range(0,churn.shape[0]-1):
+                                        if time_s >= churn.iloc[idx]["time_s"] and time_s < churn.iloc[idx+1]["time_s"]:
+                                            index = idx 
+                                            break
+                                        elif time_s >= churn.iloc[churn.shape[0]-1]["time_s"]:
+                                            index =  churn.shape[0]-1
+                                            break
+                                    if churn.shape[0] == 1:
+                                        index = 0
+                                    if index is not None:
+                                        parent_num = int(str(churn['parent'].iloc[index][-2:]),16)
+                                        child_location = pandas.DataFrame.from_dict(allstats[run][mote]['location'])
+                                        parent_location = pandas.DataFrame.from_dict(allstats[run][parent_num]['location'])
+                                        plt.plot((child_location['x'].iloc[timestep],parent_location['x'].iloc[timestep]),(child_location['y'].iloc[timestep],parent_location['y'].iloc[timestep]), '--')
+                            fname = os.path.join(subfolder,'_frame' + str(i) + '.png')
+                            files.append(fname) # TODO: tweak so fps converts to correct timestamp in seconds
+                            plt.xlim([0, 1])
+                            plt.ylim([-0.1, 0.2])
+                            plt.xlabel("X Location (km)")
+                            plt.ylabel("Y Location (km)")
+                            #print os.path.join(subfolder,files[i])
+                            plt.savefig(os.path.join(files[i]))
+                            plt.close(fig)
+                            writer.append_data(imageio.imread(files[i])[:, :, :])
+                            os.remove(files[i])
+                            removed.append(fname)
+                            
+                            #print fname
+                            i += 1
+
+                    for mote_num in range(1,2):
+                        #print "mote number: ",mote_num
+                        if 'etx' in allstats[run][mote_num]:
+                            etxs = pandas.DataFrame.from_dict(allstats[run][mote_num]['etx'])
+                            #print etxs
+                            plt.figure()
+                            plt.plot(etxs['time_s'],etxs['etx'])
+                            plt.title("ETX")
+                            plt.savefig(subfolder +"/" + "etx" +str(run) + "_" + str(mote_num))
+                            if no_figures:
+                                plt.clf()
+                        if 'neighbor_table' in allstats[run][mote_num]:
+                            neighbor_table = pandas.DataFrame.from_dict(allstats[run][mote_num]['neighbor_table'])
+                            dataline["num_neighbors"] = len(neighbor_table['neighbor_table'])
+                            #print neighbor_table
+
+                    save_data_ebs.append(dataline)
+
+            count = count + 1
+                #plt.show()
+        print "key length of run rewards dict: ", len(run_reward.keys())
+    #while batch while loop is over 
+    print run_reward
     reward_table = pandas.DataFrame.from_dict(run_reward)
     print reward_table
+    reward_means = reward_table.mean(axis = 0 )
+    print reward_means
     plt.figure()
     plt.plot(reward_table.iloc[0])
     plt.savefig(subfolder +"/" + "rewards")
+    
+    plt.figure()
+    plt.plot(reward_means)
+    plt.savefig(subfolder +"/" + "rewards_avg")
+
     data = OrderedDict()
 
 # chose lastest results

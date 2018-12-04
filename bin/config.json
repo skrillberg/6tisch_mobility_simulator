@@ -26,7 +26,7 @@
             "app_burstNumPackets":                         0,
 
             "rpl_timer_type":                              "constant",
-            "rpl_daoPeriod":                               10,
+            "rpl_daoPeriod":                               1,
             "rpl_extensions":                              ["dis_unicast"],
 
             "fragmentation":                               "FragmentForwarding",
@@ -66,12 +66,12 @@
             "steps_to_train" :                             5000,
             "lr_multiplier" :                               10,
             "reward_scaler" :                               0.00001,
-            "etx_weight" :                                  0.05,
+            "etx_weight" :                                  0.001,
             "grad_clipping":                                100,
-            "batch_size":                                   32
+            "batch_size":                                   128
         }
     },
-    "logging":                                             ["loc.update", "rpl.churn","mobility.etx"],
+    "logging":                                             ["loc.update", "rpl.churn","mobility.etx","rpl.dao.tx", "packet_dropped"],
     "log_directory_name":                                  "startTime",
     "post": [
         "python compute_kpis.py",

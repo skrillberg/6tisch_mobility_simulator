@@ -395,14 +395,23 @@ class DiscreteEventEngine(threading.Thread):
 
         for i in range(num_drones):
             rewards[self.get_mote_by_mote_id(i).id] = self.calcRewards(self.get_mote_by_mote_id(i),self.drone_pos[i]) #calc current rewards from last action
-        
+            if i > 0:
+                self.episode_rewards[self.get_mote_by_mote_id(i).id] += float(rewards[self.get_mote_by_mote_id(i).id])
         if self.started:
             #store effect and update model from previous actions
             for i in range (1,num_drones):
                 #print self.last_observations_native
                 #print rewards
                 #print "obervation vector from store effect: " , self.last_observations_native[i] + tuple(self.curr_actions.values())
-                self.socket.store_effect(self.last_observations_native[i]+tuple(self.curr_actions.values()),float(rewards[i]),self.curr_actions[i],float(self.done),i)
+                #self.socket.store_effect(self.last_observations_native[i]+tuple(self.curr_actions.values()),float(rewards[i]),self.curr_actions[i],float(self.done),i)
+                parent = self.get_mote_by_mote_id(i).rpl.of.get_preferred_parent()
+                if parent == None:
+                    parent_id = -1
+                else:
+                    parent_id=self.get_mote_by_mac_addr(parent).id
+
+                self.socket.store_effect(self.last_observations_full+tuple(self.curr_actions.values())+tuple([parent_id]),float(numpy.mean(rewards.values())),self.curr_actions[i],float(self.done),i)
+
                 self.socket.update_model(i)
             self.last_actions = self.curr_actions
         else:
@@ -415,9 +424,13 @@ class DiscreteEventEngine(threading.Thread):
         
         self.last_observations = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
         self.last_observations_native = self.connectivity.coordinates.values() #these become current observations now
+        #print "keys", self.connectivity.coordinates.keys()
         self.last_observations_full = ()
         for tup in self.connectivity.coordinates.values():
+            #todo: add parent mote id to observations vector
             self.last_observations_full += tup
+
+
 
 
 
@@ -645,11 +658,18 @@ class DiscreteEventEngine(threading.Thread):
                         #self.alg.last_obs = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))
                         #self.alg.last_obs = numpy.reshape(numpy.array(self.connectivity.coordinates.values()),(len(self.motes)*2,))[0:2]
                         #print "obs from save last obs ", self.connectivity.coordinates.values()[i]+tuple(self.last_actions.values())
-                        self.socket.save_last_obs(self.connectivity.coordinates.values()[i]+tuple(self.last_actions.values()),i)
+                        #self.socket.save_last_obs(self.connectivity.coordinates.values()[i]+tuple(self.last_actions.values()),i)
+                        parent = self.get_mote_by_mote_id(i).rpl.of.get_preferred_parent()
+                        if parent == None:
+                            parent_id = -1
+                        else:
+                            parent_id=self.get_mote_by_mac_addr(parent).id
+                        self.socket.save_last_obs(self.last_observations_full+tuple(self.last_actions.values()) + tuple([parent_id]),i)
                         
 
                     final_asn = self.settings.exec_numSlotframesPerRun * self.settings.tsch_slotframeLength
                     if(self.asn + self.settings.location_update_period > final_asn):
+                        self.socket.log_rewards(self.episode_rewards.values())
                         self.done = 1
                         print final_asn
                         print self.asn
@@ -671,16 +691,24 @@ class DiscreteEventEngine(threading.Thread):
                     #print last_observations_native
                     #print "total obs array", self.connectivity.coordinates.values()
                     #print "total obs array unwrapped", self.last_observations_full
-                    actions = self.socket.step_env(self.last_observations_native[i] + tuple(self.last_actions.values()),i)
+                    #actions = self.socket.step_env(self.last_observations_native[i] + tuple(self.last_actions.values()),i)
+                    parent = self.get_mote_by_mote_id(i).rpl.of.get_preferred_parent()
+                    if parent == None:
+                        parent_id = -1
+                    else:
+                        parent_id=self.get_mote_by_mac_addr(parent).id
+
+                    actions = self.socket.step_env(self.last_observations_full + tuple(self.last_actions.values()) + tuple([parent_id]),i)
+
                     #print "step env observation vector" , self.last_observations_native[i] + tuple(self.last_actions.values() )
 
                         
 
 
                     if self.done ==1:
-                        #self.socket.store_effect(self.last_observations_native[i]+ tuple(self.last_actions.values()) ,float(rewards[i]),self.curr_actions[i],float(self.done),i)
+                        self.socket.store_effect(self.last_observations_full+ tuple(self.last_actions.values()) ,float(numpy.mean(rewards.values())),self.curr_actions[i],float(self.done),i)
 
-                        self.socket.store_effect(self.last_observations_native[i]+ tuple(self.last_actions.values()) ,float(rewards[i]),self.curr_actions[i],float(self.done),i)
+                        #self.socket.store_effect(self.last_observations_native[i]+ tuple(self.last_actions.values()) ,float(rewards[i]),self.curr_actions[i],float(self.done),i)
                     #print i,last_observations_native[i], actions 
                     #print last_observations[i*2:i*2+2], actions
 
@@ -868,10 +896,16 @@ class SimEngine(DiscreteEventEngine):
                 self.drone_vels.append([0.0, 0.0])
 
         
-        self.goal_loc = self.settings.goal_loc
-        self.last_actions ={}
-        self.curr_actions={}
+        self.goal_loc = self.settings.goal_loc # goal location of network in meters
+        self.last_actions ={}                   # actions of all motes from previous timestep
+        self.curr_actions={}                    # current actions of motes; this is added to each iteration
+                                                # and curr_actions->last_actions at the start of each new timestep
         self.started = False
+        self.episode_rewards = {}               # dict that holds sum of rewards for episode
+
+        for i in range(1,len(self.motes)):
+            self.episode_rewards[i] = 0
+
         print "engine restarted"
 
 
