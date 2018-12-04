@@ -106,8 +106,8 @@ def lander_model(obs, num_actions, scope, reuse=False):
 exploration_schedule = dqn_utils.PiecewiseSchedule(
 	[
 		(0, 1.0),
-		(num_iterations/5, 0.4),
-		(num_iterations , 0.05),
+		(num_iterations/5, 0.2),
+		(num_iterations/2 , 0.05),
 	], outside_value=0.01
 )
 algs = {}
@@ -120,18 +120,18 @@ for i in range(1,simconfig.settings.combination.exec_numMotes[0]):
 				exploration=exploration_schedule,
 				stopping_criterion=stopping_criterion,
 				replay_buffer_size=100000,
-				batch_size=32,
-				gamma=0.99,
+				batch_size=simconfig.settings.regular.batch_size,
+				gamma=0.999,
 				learning_starts=simconfig.settings.regular.steps_to_train,
 				learning_freq=4,
 				frame_history_len=4,
 				target_update_freq=10000,
-				grad_norm_clipping=100,
+				grad_norm_clipping=simconfig.settings.regular.grad_clipping,
 				double_q=True,
 				num_motes = simconfig.settings.combination.exec_numMotes[0]-1,
 				initial_state = {},
 				agent = i,
-				observation_dim = 2)
+				observation_dim = 1+ 2*(simconfig.settings.combination.exec_numMotes[0])+ (simconfig.settings.combination.exec_numMotes[0]-1))
 
 # Register an instance; all the methods of the instance are
 # published as XML-RPC methods (in this case, just 'div').
@@ -158,6 +158,9 @@ class MyFuncs:
 		#print "stored last obs",numpy.array(last_observations)
 		actions = algs[agent].step_env(numpy.array(last_observations),agent)
 		return int(actions)
+	def log_rewards(self, rewards):
+		print rewards
+
 	def exit(self):
 		pass
 
