@@ -71,7 +71,7 @@ session = tf.Session(config=tf_config)
 
 
 num_timesteps = simconfig.settings.regular.exec_numSlotframesPerRun * simconfig.settings.combination.tsch_slotframeLength[0] *simconfig.execution.numRuns  #rough, todo make real slotframes
-print num_timesteps
+print(num_timesteps)
 num_iterations = float(num_timesteps) /simconfig.settings.regular.location_update_period
 
 #lr_multiplier = 10.0

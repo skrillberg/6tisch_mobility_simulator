@@ -1,0 +1,7 @@
+import matplotlib.pyplot as plt
+import pandas as pd
+
+files = ['71a6f199-f598-4a94-922c-9328088abdf6_b32_lr1.0_clip10.csv',
+'144c4b44-cbd5-4529-b21b-4c81fac498d4_b32_lr0.1_clip10.csv',
+'144ca65f-b9a7-4e53-8385-b91778047980_b32_lr1.0_clip10.csv']
+
